@@ -99,6 +99,7 @@ pub fn choose_entry(path: Option<&str>, id: Option<&str>) -> Result<Entry, Error
             let mut path_list: Vec<String> = index_list.into_iter().map(|x| x.1).collect();
             path_list.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
             let mut rofi = ItemList::new(path_list, Box::new(identity_callback));
+            rofi.window = rofi.window.dimensions(Dimensions {width: 800, height: 800, lines: 10, columns: 1});
             match rofi_display_item(&mut rofi, "Select an entry".to_string(), 10) {
                 RustofiResult::Selection(s) => {
                     let entry_id = match uuid_lookup.get(s.as_str()) {
