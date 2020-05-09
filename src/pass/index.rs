@@ -43,7 +43,7 @@ pub fn get_index() -> Result<Vec<(Uuid, String)>, Error> {
 
 pub fn get_path_list() -> Result<Vec<String>, Error> {
     let mut path_list: Vec<String> = get_index()?.into_iter().map(|x| x.1).collect();
-    path_list.sort();
+    path_list.sort_by(|a, b| b.to_lowercase().cmp(&a.to_lowercase()));
     Ok(path_list)
 }
 

@@ -85,7 +85,7 @@ pub fn gen_path_interactive() -> Result<String, Error> {
 pub fn gen_path_recursive(cur_path: String) -> RustofiResult {
 
     let mut index_list = get_index().expect("Cannot get index file");
-    index_list.sort_by(|a, b| b.1.cmp(&a.1));
+    index_list.sort_by(|a, b| b.1.to_lowercase().cmp(&a.1.to_lowercase()));
     let (g, root) = to_graph(&index_list);
 
     let mut last_node = root;

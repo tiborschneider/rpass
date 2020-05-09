@@ -6,7 +6,7 @@ use crate::pass;
 
 pub fn list() {
     let mut index_list = pass::index::get_index().expect("Cannot get index list!");
-    index_list.sort_by(|a, b| b.1.cmp(&a.1));
+    index_list.sort_by(|a, b| b.1.to_lowercase().cmp(&a.1.to_lowercase()));
     let (graph, root) = pass::index::to_graph(&index_list);
     let mut open: Vec<TreeFmtOpen> = Vec::new();
     recursive_tree_print(&graph, root, &mut open);
