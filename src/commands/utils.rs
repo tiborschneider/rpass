@@ -5,8 +5,10 @@ use std::io::{Error, ErrorKind};
 use rustofi::components::{ActionList, ItemList, EntryBox};
 use rustofi::window::Dimensions;
 use rustofi::RustofiResult;
+use uuid::Uuid;
 
-use crate::pass::index::{get_index, to_graph};
+use crate::pass::index::{get_index, to_graph, to_hashmap_reverse};
+use crate::pass::entry::Entry;
 
 pub fn rofi_display_item<'a, T: Display + Clone>(rofi: &mut ItemList<'a, T>, prompt: String, lines: usize) -> RustofiResult {
     let extra = vec!["".to_string(), "[cancel]".to_string()];
@@ -68,6 +70,56 @@ pub fn rofi_display_action<'a, T: Display + Clone>(rofi: &mut ActionList<'a, T>,
         }
         Err(_) => RustofiResult::Error
     }
+}
+
+pub fn choose_entry(path: Option<&str>, id: Option<&str>) -> Result<Entry, Error> {
+    match (path, id) {
+        (Some(path), None) => {
+            let index_list = get_index()?;
+            let uuid_lookup = to_hashmap_reverse(&index_list);
+            let entry_id = match uuid_lookup.get(path) {
+                Some(id) => id,
+                None => return Err(Error::new(ErrorKind::NotFound, "Path is not present in the index file!"))
+            };
+            Entry::get(entry_id.clone())
+        },
+
+        (None, Some(id)) => {
+            let id = match Uuid::parse_str(id) {
+                Ok(id) => id,
+                Err(_) => return Err(Error::new(ErrorKind::Other, "Cannot parse UUID"))
+            };
+            Entry::get(id)
+        },
+        
+        (None, None) => {
+            let index_list = get_index()?;
+            let index_list_clone = index_list.clone();
+            let uuid_lookup = to_hashmap_reverse(&index_list_clone);
+            let mut path_list: Vec<String> = index_list.into_iter().map(|x| x.1).collect();
+            path_list.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+            let mut rofi = ItemList::new(path_list, Box::new(identity_callback));
+            match rofi_display_item(&mut rofi, "Select an entry".to_string(), 10) {
+                RustofiResult::Selection(s) => {
+                    let entry_id = match uuid_lookup.get(s.as_str()) {
+                        Some(id) => id,
+                        None => return Err(Error::new(ErrorKind::NotFound, "Path is not present in the index file!"))
+                    };
+                    Entry::get(entry_id.clone())
+                },
+                RustofiResult::Blank        => Err(Error::new(ErrorKind::Interrupted, "User chose blank option")),
+                RustofiResult::Cancel       => Err(Error::new(ErrorKind::Interrupted, "User chose cancel option")),
+                RustofiResult::Exit         => Err(Error::new(ErrorKind::Interrupted, "User exited rofi")),
+                _                           => Err(Error::new(ErrorKind::Other, "Rofi failed"))
+            }
+        },
+
+        _ => panic!("This should not happen")
+    }
+}
+
+pub fn identity_callback(name: &String) -> RustofiResult {
+    RustofiResult::Selection(name.clone())
 }
 
 pub fn gen_path_interactive() -> Result<String, Error> {

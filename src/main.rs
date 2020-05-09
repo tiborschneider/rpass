@@ -22,13 +22,30 @@ fn main() {
                      .short("p")
                      .long("path")
                      .value_name("PATH")
-                     .help("path to the key to delete")
+                     .help("path to the key to show content")
                      .takes_value(true))
                 .arg(Arg::with_name("uuid")
                      .short("u")
                      .long("uuid")
                      .value_name("UUID")
-                     .help("uuid of the key to delete")
+                     .help("uuid of the key to show content")
+                     .takes_value(true)
+                     .conflicts_with("path"))
+        )
+        .subcommand(
+            SubCommand::with_name("edit")
+                .about("Edit content of entry")
+                .arg(Arg::with_name("path")
+                     .short("p")
+                     .long("path")
+                     .value_name("PATH")
+                     .help("path to the key to eidt")
+                     .takes_value(true))
+                .arg(Arg::with_name("uuid")
+                     .short("u")
+                     .long("uuid")
+                     .value_name("UUID")
+                     .help("uuid of the key to edit")
                      .takes_value(true)
                      .conflicts_with("path"))
         )
@@ -149,6 +166,8 @@ fn main() {
         ("interactive", _)     => commands::interactive(),
         ("get",    Some(args)) => commands::get(args.value_of("path"),
                                                 args.value_of("uuid")),
+        ("edit",   Some(args)) => commands::edit(args.value_of("path"),
+                                                 args.value_of("uuid")),
         ("mv",     Some(args)) => commands::mv(args.value_of("path"),
                                                args.value_of("uuid"),
                                                args.value_of("dst")),

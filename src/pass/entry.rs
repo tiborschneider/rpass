@@ -150,6 +150,10 @@ impl Entry {
             }
         }
 
+        if e.path.is_none() {
+            return Err(Error::new(ErrorKind::NotFound, "Entry has no path!"));
+        }
+
         Ok(e)
     }
 
@@ -181,6 +185,33 @@ impl Entry {
         p.wait()?;
 
         Ok(())
+    }
+
+    pub fn edit(&mut self) -> Result<(), Error> {
+
+        Command::new("pass")
+            .arg("edit")
+            .arg(format!("{}/{}", ROOT_FOLDER, self.uuid))
+            .spawn()?.wait()?;
+
+        // update the own settings and check if the path is unchanged. If not, update the path
+        let old_path = self.path.clone().unwrap();
+
+        let new_entry = Entry::get(self.uuid)?;
+        self.username = new_entry.username.clone();
+        self.password = new_entry.password.clone();
+        self.path = new_entry.path.clone();
+        self.url = new_entry.url.clone();
+        self.raw = new_entry.raw.clone();
+
+        let new_path = self.path.clone().unwrap();
+        if old_path != new_path {
+            println!("Path changed!, updating index file...");
+            index::mv(self.uuid, new_path)?
+        }
+
+        Ok(())
+
     }
 
     fn get_raw(id: Uuid) -> Result<String, Error> {
@@ -259,6 +290,33 @@ impl Entry {
             }
         }
 
+    }
+
+    pub fn change_path(&mut self, new_path: String) -> Result<(), Error> {
+        if self.path.is_none() {
+            return Err(Error::new(ErrorKind::Other, "path is not already set!"));
+        }
+
+        // set the new path
+        self.path = Some(new_path.clone());
+
+        // change the raw content
+        let old_raw = self.raw.clone();
+        self.raw = String::new();
+        for line in old_raw.lines() {
+            if line.starts_with(PATH_KEY) {
+                self.raw.push_str(PATH_KEY);
+                self.raw.push_str(new_path.as_str());
+            } else {
+                self.raw.push_str(line);
+            }
+            self.raw.push('\n');
+        }
+
+        self.write()?;
+
+        // change index file
+        index::mv(self.uuid, new_path)
     }
 
 }
