@@ -1,0 +1,19 @@
+[package]
+name = "rpass"
+version = "0.1.0"
+authors = ["Tibor Schneider <tiborschneider@bluewin.ch>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+uuid = { version = "0.8", features = [ "v4" ] }
+petgraph = { version = "0.5", features = [ "graphmap" ] }
+clap = "2.33.0"
+text_io = "0.1.8"
+fake = "2.2"
+rpassword = "4.0"
+clipboard = "0.5.0"
+notify-rust = "3"
+ansi_term = "0.12.1"
+rustofi = "0.2.2"
