@@ -18,8 +18,3 @@ pub use mv::mv;
 pub use passwd::passwd;
 pub use edit::edit;
 pub use fix_index::fix_index;
-
-pub enum Error {
-    InvalidInput,
-    IOError(std::io::Error)
-}

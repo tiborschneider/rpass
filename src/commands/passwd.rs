@@ -1,3 +1,5 @@
+use std::io::Error;
+
 use rpassword;
 use fake::{Fake, faker};
 
@@ -6,7 +8,7 @@ use crate::commands::utils::choose_entry;
 pub fn passwd(path: Option<&str>,
               id: Option<&str>,
               new_passwd: Option<&str>,
-              generate: Option<usize>) {
+              generate: Option<usize>) -> Result<(), Error> {
 
     let passwd = match generate {
         Some(x) => Some(faker::internet::en::Password(x..x+1).fake()),
@@ -16,7 +18,7 @@ pub fn passwd(path: Option<&str>,
         }
     };
 
-    let mut entry = choose_entry(path, id).expect("could not choose entry");
+    let mut entry = choose_entry(path, id)?;
 
     println!("Cange password of {}", entry);
 
@@ -25,8 +27,8 @@ pub fn passwd(path: Option<&str>,
         None => {
             let mut passwd: String;
             loop {
-                passwd = rpassword::prompt_password_stdout("Enter a password: ").expect("Invalid password entered!");
-                let rp = rpassword::prompt_password_stdout("Repeat the password: ").expect("Invalid password entered!");
+                passwd = rpassword::prompt_password_stdout("Enter a password: ")?;
+                let rp = rpassword::prompt_password_stdout("Repeat the password: ")?;
                 if passwd == rp {
                     break;
                 } else {
@@ -37,6 +39,6 @@ pub fn passwd(path: Option<&str>,
         }
     };
 
-    entry.change_password(if passwd.len() > 0 { Some(passwd) } else { None }).expect("Cannot change password");
+    entry.change_password(if passwd.len() > 0 { Some(passwd) } else { None })
     
 }

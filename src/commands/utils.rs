@@ -5,7 +5,7 @@ use std::fmt::Display;
 use std::io::{Error, ErrorKind};
 
 use rustofi::components::{ActionList, ItemList, EntryBox};
-use rustofi::window::Dimensions;
+use rustofi::window::{Dimensions, Window};
 use rustofi::RustofiResult;
 use uuid::Uuid;
 use text_io::read;
@@ -126,14 +126,14 @@ pub fn identity_callback(name: &String) -> RustofiResult {
     RustofiResult::Selection(name.clone())
 }
 
-pub fn gen_path_interactive() -> Result<String, Error> {
+pub fn gen_path_interactive() -> Result<Option<String>, Error> {
     match gen_path_recursive("".to_string()) {
-        RustofiResult::Selection(s) => Ok(s),
+        RustofiResult::Selection(s) => Ok(Some(s)),
         RustofiResult::Action(_)    => Err(Error::new(ErrorKind::Other, "Rofi returned an action instead of a selection!")),
         RustofiResult::Success      => Err(Error::new(ErrorKind::UnexpectedEof, "Success returned without a string!")),
-        RustofiResult::Blank        => Err(Error::new(ErrorKind::Interrupted, "Blank option chosen!")),
+        RustofiResult::Blank        => Ok(None),
         RustofiResult::Error        => Err(Error::new(ErrorKind::Other, "Rofi returned unexpected error")),
-        RustofiResult::Cancel       => Err(Error::new(ErrorKind::Interrupted, "Cancel option chosen!")),
+        RustofiResult::Cancel       => Ok(None),
         RustofiResult::Exit         => Err(Error::new(ErrorKind::Interrupted, "Exit option chosen!")),
     }
 }
@@ -205,11 +205,26 @@ fn ask_for_path(path: &String) -> RustofiResult {
     }
 }
 
-pub fn confirm<S: AsRef<str>>(q: S) -> bool {
+pub fn confirm<S: AsRef<str>>(q: S, use_rofi: bool) -> bool {
+    match use_rofi {
+        true => confirm_rofi(q),
+        false => confirm_stdio(q)
+    }
+}
+
+fn confirm_stdio<S: AsRef<str>>(q: S) -> bool {
     print!("{} [y/N]: ", q.as_ref());
     io::stdout().flush().ok().expect("Could not flush stdout");
     let answer: String = read!("{}\n");
     answer == "y" || answer == "Y"
+}
+
+fn confirm_rofi<S: AsRef<str>>(q: S) -> bool {
+    let options = vec!["No".to_string(), "Yes".to_string()];
+    match Window::new(q.as_ref()).show(options) {
+        Ok(s) => s == "Yes",
+        Err(_) => false
+    }
 }
 
 pub fn question<S: AsRef<str>>(q: S, use_rofi: bool) -> Option<String> {

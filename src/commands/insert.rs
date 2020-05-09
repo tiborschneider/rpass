@@ -1,9 +1,6 @@
-use std::io::prelude::*;                                                           
-use std::io;
-
+use std::io::{Error, ErrorKind};
 use rpassword;
 use fake::{Fake, faker};
-use text_io::read;
 
 use crate::pass::entry::Entry;
 use crate::commands::utils;
@@ -12,22 +9,32 @@ pub fn insert(path: Option<&str>,
               username: Option<&str>,
               password: Option<&str>,
               url: Option<&str>,
-              generate: Option<usize>) {
+              generate: Option<usize>,
+              use_rofi: bool) -> Result<(), Error> {
 
     let path = match path {
         Some(s) => s.to_string(),
-        None => match utils::gen_path_interactive() {
-            Ok(s) => {
-                println!("path: {}", s);
-                s
-            },
-            Err(e) => panic!("Invalid path selected! {}", e)
+        None => {
+            if use_rofi {
+                match utils::gen_path_interactive()? {
+                    Some(s) => {
+                        println!("path: {}", s);
+                        s
+                    },
+                    None => return Err(Error::new(ErrorKind::Interrupted, "path is required!")),
+                }
+            } else {
+                match utils::question("path", use_rofi) {
+                    Some(s) => s,
+                    None => return Err(Error::new(ErrorKind::Interrupted, "path is required!"))
+                }
+            }
         }
     };
 
     let username = match username {
         Some(s) => Some(s.to_string()),
-        None => question("username")
+        None => utils::question("username", use_rofi)
     };
 
     let password = match generate {
@@ -37,8 +44,8 @@ pub fn insert(path: Option<&str>,
             None => {
                 let mut passwd: String;
                 loop {
-                    passwd = rpassword::prompt_password_stdout("Enter a password: ").expect("Invalid password entered!");
-                    let rp = rpassword::prompt_password_stdout("Repeat the password: ").expect("Invalid password entered!");
+                    passwd = rpassword::prompt_password_stdout("Enter a password: ")?;
+                    let rp = rpassword::prompt_password_stdout("Repeat the password: ")?;
                     if passwd == rp {
                         break;
                     } else {
@@ -52,24 +59,13 @@ pub fn insert(path: Option<&str>,
 
     let url = match url {
         Some(s) => Some(s.to_string()),
-        None => question("url")
+        None => utils::question("url", use_rofi)
     };
 
     let e = Entry::new(username, password, url, path);
     println!("{}", e);
 
-    e.create().expect("Cannot create entry!");
-}
-
-fn question(q: &str) -> Option<String> {
-    print!("{}: ", q);
-    io::stdout().flush().ok().expect("Could not flush stdout");
-    let answer: String = read!("{}\n");
-    if answer.len() == 0 {
-        None
-    } else {
-        Some(answer)
-    }
+    e.create()
 }
 
 fn generate_password(x: usize) -> String {

@@ -174,7 +174,8 @@ fn main() {
                                                  args.value_of("uuid")),
         ("mv",     Some(args)) => commands::mv(args.value_of("path"),
                                                args.value_of("uuid"),
-                                               args.value_of("dst")),
+                                               args.value_of("dst"),
+                                               false),
         ("insert", Some(args)) => commands::insert(args.value_of("path"),
                                                    args.value_of("username"),
                                                    args.value_of("password"),
@@ -182,7 +183,8 @@ fn main() {
                                                    match args.is_present("generate") {
                                                        true => Some(DEFAULT_PW_SIZE),
                                                        false => None
-                                                   }),
+                                                   },
+                                                   false),
         ("passwd", Some(args)) => commands::passwd(args.value_of("path"),
                                                    args.value_of("uuid"),
                                                    args.value_of("password"),
@@ -192,10 +194,12 @@ fn main() {
                                                    }),
         ("rm", Some(args))     => commands::delete(args.value_of("path"),
                                                    args.value_of("uuid"),
-                                                   args.is_present("force")),
+                                                   args.is_present("force"),
+                                                   false),
         ("ls", _)              => commands::list(),
         ("fix-index", _)       => commands::fix_index(),
-        _                      => println!("{}", matches.usage())
-    }
+        _                      => { println!("{}", matches.usage());
+                                    Ok(()) }
+    }.expect("Something went wrong");
 
 }

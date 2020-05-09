@@ -11,11 +11,7 @@ use crate::commands::utils::{confirm, gen_path_interactive, two_options};
 
 const UUID_PATH: &str = ".password-store/uuids/";
 
-pub fn fix_index() {
-    apply_index_fix().expect("Cannot fix indices");
-}
-
-fn apply_index_fix() -> Result<(), Error> {
+pub fn fix_index() -> Result<(), Error> {
 
     let index_file = index::get_index()?;
     let path_lookup = index::to_hashmap(&index_file);
@@ -92,17 +88,17 @@ fn check_fix_entry(entry_id: Uuid, path_lookup: &HashMap<Uuid, &str>) -> Result<
             match entry.path.clone() {
                 Some(path) => { // generate index entry to the stored path
                     println!("\nEntry is not present in the index!\n{}", entry);
-                    if confirm(format!("Create index at {}", path)) {
+                    if confirm(format!("Create index at {}", path), false) {
                         index::insert(entry.uuid, &path)?;
                     }
                 },
                 None => { // no path can be found
                     println!("\nEntry is not present in the index and has no path information!\n{}", entry);
-                    if confirm("Create index and move entry to new location?") {
+                    if confirm("Create index and move entry to new location?", false) {
                         match gen_path_interactive() {
-                            Ok(path) => { println!("Move entry to {}", path);
-                                          entry.change_path(path)?; },
-                            Err(_) => println!("Skipped!")
+                            Ok(Some(path)) => { println!("Move entry to {}", path);
+                                                entry.change_path(path)?; },
+                            _ => println!("Skipped!")
                         }
                     }
                 }

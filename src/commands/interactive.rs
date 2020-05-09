@@ -1,4 +1,4 @@
-use std::io::prelude::*;                                                           
+use std::io::prelude::*;
 use std::io::{Error, ErrorKind, Write, BufReader};
 use std::{thread, time};
 use std::path::Path;
@@ -21,29 +21,29 @@ const USERNAME: &str = "Username";
 const PASSWORD: &str = "Password";
 const BOTH: &str = "Both";
 
-pub fn interactive() {
+pub fn interactive() -> Result<(), Error> {
     // check if there was a previous access to copy both username and password to clipboard
-    let result = match previous_entry().expect("Cannot read last command file!") {
+    let result = match previous_entry()? {
         Some(id) => {
-            let entry = pass::entry::Entry::get(id).expect("Cannot find UUID!");
+            let entry = pass::entry::Entry::get(id)?;
             action_copy_entry(&entry, &PASSWORD.to_string())
         },
         None => {
             // generate the list view
-            let path_list = pass::index::get_path_list().expect("cannot get path list from index file");
+            let path_list = pass::index::get_path_list()?;
             let mut rofi = ItemList::new(path_list, Box::new(choose_action_callback));
-            rofi.window = rofi.window.dimensions(Dimensions {width: 800, height: 800, lines: 10, columns: 1});
+            rofi.window = rofi.window.dimensions(Dimensions {width: 900, height: 800, lines: 10, columns: 1});
             utils::rofi_display_item(&mut rofi, "Choose an entry".to_string(), 10)
         }
     };
 
     match result {
-        RustofiResult::Success => {},
-        RustofiResult::Blank   => { println!("Nothing was selected!"); },
-        RustofiResult::Error   => { panic!("Something went wrong selecting an entry"); },
-        RustofiResult::Cancel  => { println!("Action cancelled!"); },
-        RustofiResult::Exit    => { println!("Exit action is selected!"); },
-        _                      => { panic!("Unknown result!") }
+        RustofiResult::Success => Ok(()),
+        RustofiResult::Blank   => Err(Error::new(ErrorKind::Interrupted, "Blank option chosen")),
+        RustofiResult::Error   => Err(Error::new(ErrorKind::Other, "Unexpected rofi error")),
+        RustofiResult::Cancel  => Err(Error::new(ErrorKind::Interrupted, "Rofi cancelled")),
+        RustofiResult::Exit    => Err(Error::new(ErrorKind::Interrupted, "Exit option chosen")),
+        _                      => Err(Error::new(ErrorKind::Other, "Unexpected rofi error"))
     }
 }
 
