@@ -47,6 +47,14 @@ pub fn get_path_list() -> Result<Vec<String>, Error> {
     Ok(path_list)
 }
 
+pub fn to_hashmap<'a>(index_list: &'a Vec<(Uuid, String)>) -> HashMap<Uuid, &'a str> {
+    let mut map: HashMap<Uuid, &'a str> = HashMap::new();
+    for (id, path) in index_list {
+        map.insert(id.clone(), path);
+    }
+    map
+}
+
 pub fn to_hashmap_reverse<'a>(index_list: &'a Vec<(Uuid, String)>) -> HashMap<&'a str, Uuid> {
     let mut map: HashMap<&'a str, Uuid> = HashMap::new();
     for (id, path) in index_list {
@@ -178,14 +186,22 @@ pub fn mv(id: Uuid, dst: String) -> Result<(), Error> {
 
     let mut index_list_mod: Vec<(Uuid, String)> = Vec::new();
 
+    let mut added: bool = false;
+
     for (i, s) in index_list {
         if i == id {
             index_list_mod.push((i, dst.clone()));
+            added = true;
         } else if s == dst {
             return Err(Error::new(ErrorKind::AlreadyExists, "Destination already exists!"));
         } else {
             index_list_mod.push((i, s));
         }
+    }
+
+    if !added {
+        println!("[Warning] mv for entry currently not existing in the index! Creating index for the entry...");
+        index_list_mod.push((id, dst.clone()));
     }
 
     // rewrite the index list

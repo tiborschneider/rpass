@@ -150,10 +150,6 @@ impl Entry {
             }
         }
 
-        if e.path.is_none() {
-            return Err(Error::new(ErrorKind::NotFound, "Entry has no path!"));
-        }
-
         Ok(e)
     }
 
@@ -293,9 +289,13 @@ impl Entry {
     }
 
     pub fn change_path(&mut self, new_path: String) -> Result<(), Error> {
-        if self.path.is_none() {
-            return Err(Error::new(ErrorKind::Other, "path is not already set!"));
-        }
+        self.change_path_keep_index(new_path.clone())?;
+
+        // change index file
+        index::mv(self.uuid, new_path)
+    }
+
+    pub fn change_path_keep_index(&mut self, new_path: String) -> Result<(), Error> {
 
         // set the new path
         self.path = Some(new_path.clone());
@@ -303,20 +303,26 @@ impl Entry {
         // change the raw content
         let old_raw = self.raw.clone();
         self.raw = String::new();
+        let mut path_entered = false;
         for line in old_raw.lines() {
             if line.starts_with(PATH_KEY) {
                 self.raw.push_str(PATH_KEY);
                 self.raw.push_str(new_path.as_str());
+                path_entered = true;
             } else {
                 self.raw.push_str(line);
             }
             self.raw.push('\n');
         }
 
-        self.write()?;
+        if !path_entered {
+            self.raw.push_str(PATH_KEY);
+            self.raw.push_str(new_path.as_str());
+            self.raw.push('\n');
+        }
 
-        // change index file
-        index::mv(self.uuid, new_path)
+        self.write()
+
     }
 
 }

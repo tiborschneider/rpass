@@ -1,8 +1,4 @@
-use std::io;
-use std::io::prelude::*;                                                           
-use text_io::read;
-
-use crate::commands::utils::choose_entry;
+use crate::commands::utils::{choose_entry, confirm};
 use crate::pass;
 
 pub fn delete(path: Option<&str>,
@@ -21,12 +17,4 @@ pub fn delete(path: Option<&str>,
         pass::index::remove(entry.uuid).expect("Could not remove the entry!");
     }
 
-}
-
-
-fn confirm(q: &str) -> bool {
-    print!("{} [y/N]: ", q);
-    io::stdout().flush().ok().expect("Could not flush stdout");
-    let answer: String = read!("{}\n");
-    answer == "y" || answer == "Y"
 }

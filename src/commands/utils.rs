@@ -1,3 +1,5 @@
+use std::io;
+use std::io::prelude::*;
 use std::clone::Clone;
 use std::fmt::Display;
 use std::io::{Error, ErrorKind};
@@ -6,6 +8,7 @@ use rustofi::components::{ActionList, ItemList, EntryBox};
 use rustofi::window::Dimensions;
 use rustofi::RustofiResult;
 use uuid::Uuid;
+use text_io::read;
 
 use crate::pass::index::{get_index, to_graph, to_hashmap_reverse};
 use crate::pass::entry::Entry;
@@ -200,4 +203,53 @@ fn ask_for_path(path: &String) -> RustofiResult {
         }
         Err(_) => RustofiResult::Error
     }
+}
+
+pub fn confirm<S: AsRef<str>>(q: S) -> bool {
+    print!("{} [y/N]: ", q.as_ref());
+    io::stdout().flush().ok().expect("Could not flush stdout");
+    let answer: String = read!("{}\n");
+    answer == "y" || answer == "Y"
+}
+
+pub fn question<S: AsRef<str>>(q: S, use_rofi: bool) -> Option<String> {
+    match use_rofi {
+        true => question_rofi(q),
+        false => question_stdio(q)
+    }
+}
+
+fn question_stdio<S: AsRef<str>>(q: S) -> Option<String> {
+    print!("{}: ", q.as_ref());
+    io::stdout().flush().ok().expect("Could not flush stdout");
+    let answer: String = read!("{}\n");
+    if answer.len() == 0 {
+        None
+    } else {
+        Some(answer)
+    }
+}
+
+fn question_rofi<S: AsRef<str>>(q: S) -> Option<String> {
+    let result = EntryBox::create_window()
+        .prompt(format!("{}", q.as_ref()))
+        .dimensions(Dimensions{width:1100, height:100, lines:1, columns:1})
+        .show(vec!["".to_string()]);
+    match result {
+        Ok(input) => {
+            if input == "" {
+                None
+            } else {
+                Some(input)
+            }
+        }
+        Err(_) => None
+    }
+}
+
+pub fn two_options<S: AsRef<str>>(primary: S, secondary: S) -> bool {
+    print!("1: {}, 2: {} [1|2]: ", primary.as_ref(), secondary.as_ref());
+    io::stdout().flush().ok().expect("Could not flush stdout");
+    let answer: String = read!("{}\n");
+    answer != "2"
 }

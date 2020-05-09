@@ -160,6 +160,10 @@ fn main() {
             SubCommand::with_name("ls")
                 .about("Lists all keys in a tree-like structure")
         )
+        .subcommand(
+            SubCommand::with_name("fix-index")
+                .about("Checks all indices and fixes them")
+        )
         .get_matches();
 
     match matches.subcommand() {
@@ -189,7 +193,8 @@ fn main() {
         ("rm", Some(args))     => commands::delete(args.value_of("path"),
                                                    args.value_of("uuid"),
                                                    args.is_present("force")),
-        ("ls",   _)            => commands::list(),
+        ("ls", _)              => commands::list(),
+        ("fix-index", _)       => commands::fix_index(),
         _                      => println!("{}", matches.usage())
     }
 
