@@ -56,6 +56,35 @@ fn main() {
                      .takes_value(true))
         )
         .subcommand(
+            SubCommand::with_name("passwd")
+                .about("Change password of a specific key")
+                .arg(Arg::with_name("path")
+                     .short("d")
+                     .long("path")
+                     .value_name("PATH")
+                     .help("path to the key")
+                     .takes_value(true))
+                .arg(Arg::with_name("uuid")
+                     .short("u")
+                     .long("uuid")
+                     .value_name("UUID")
+                     .help("uuid of the key")
+                     .takes_value(true)
+                     .conflicts_with("path"))
+                .arg(Arg::with_name("password")
+                     .short("p")
+                     .long("password")
+                     .value_name("DESTINATION")
+                     .help("new password to set")
+                     .takes_value(true))
+                .arg(Arg::with_name("generate")
+                     .short("g")
+                     .long("generate")
+                     .help("automatically generate a password with 20 characters")
+                     .takes_value(false)
+                     .conflicts_with("password"))
+        )
+        .subcommand(
             SubCommand::with_name("insert")
                 .about("Insert a new key")
                 .arg(Arg::with_name("path")
@@ -79,7 +108,7 @@ fn main() {
                 .arg(Arg::with_name("generate")
                      .short("g")
                      .long("generate")
-                     .help("automatically generate a password with PW_LENGTH characters")
+                     .help("automatically generate a password with 20 characters")
                      .takes_value(false)
                      .conflicts_with("password"))
                 .arg(Arg::with_name("url")
@@ -121,13 +150,19 @@ fn main() {
         ("get",    Some(args)) => commands::get(args.value_of("path"),
                                                 args.value_of("uuid")),
         ("mv",     Some(args)) => commands::mv(args.value_of("path"),
-
                                                args.value_of("uuid"),
                                                args.value_of("dst")),
         ("insert", Some(args)) => commands::insert(args.value_of("path"),
                                                    args.value_of("username"),
                                                    args.value_of("password"),
                                                    args.value_of("url"),
+                                                   match args.is_present("generate") {
+                                                       true => Some(DEFAULT_PW_SIZE),
+                                                       false => None
+                                                   }),
+        ("passwd", Some(args)) => commands::passwd(args.value_of("path"),
+                                                   args.value_of("uuid"),
+                                                   args.value_of("password"),
                                                    match args.is_present("generate") {
                                                        true => Some(DEFAULT_PW_SIZE),
                                                        false => None

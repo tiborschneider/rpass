@@ -153,11 +153,18 @@ impl Entry {
         Ok(e)
     }
 
-    pub fn write(&self) -> Result<(), Error> {
+    pub fn create(&self) -> Result<(), Error> {
 
         if self.path.is_none() {
             return Err(Error::new(ErrorKind::NotFound, "Entry has no path!"))
         }
+
+        self.write()?;
+        index::insert(self.uuid, self.path.as_ref().unwrap())?;
+        Ok(())
+    }
+
+    pub fn write(&self) -> Result<(), Error> {
 
         let mut p = Command::new("pass")
             .arg("insert")
@@ -173,8 +180,6 @@ impl Entry {
 
         p.wait()?;
 
-        index::insert(self.uuid, self.path.as_ref().unwrap())?;
-
         Ok(())
     }
 
@@ -189,6 +194,69 @@ impl Entry {
         match String::from_utf8(result_utf8) {
             Ok(r) => Ok(r),
             Err(_) => Err(Error::new(ErrorKind::InvalidData, "Cannot parse utf8!"))
+        }
+
+    }
+
+    pub fn change_password(&mut self, passwd: Option<String>) -> Result<(), Error> {
+
+        match (passwd, self.password.is_some()) {
+            (Some(new_pw), true) => { // replace password
+                let raw_clone = self.raw.clone();
+                let mut lines_iter = raw_clone.lines();
+                self.raw = String::new();
+
+                // write the new password
+                self.raw.push_str(format!("{}\n", new_pw).as_str());
+                // skip first line, which must contain the password
+                lines_iter.next();
+
+                // write the rest
+                for line in lines_iter {
+                    self.raw.push_str(line);
+                    self.raw.push('\n');
+                }
+
+                // update the password
+                self.password = Some(new_pw);
+
+                // write the changes
+                self.write()
+            },
+            (None, true) => { // remove password
+                // remove the first line in raw
+                let num_lines = self.raw.len();
+                self.raw = match num_lines {
+                    0 => return Err(Error::new(ErrorKind::Other, "Raw content is already empty, but a password should exist!")),
+                    1 => "".to_string(),
+                    len => {
+                        let lines: Vec<&str> = self.raw.lines().collect();
+                        lines[1..len].join("\n")
+                    }
+                };
+
+                // update the password
+                self.password = None;
+
+                // write the changes
+                self.write()
+            },
+            (Some(new_pw), false) => { // add password
+                let num_lines = self.raw.len();
+                self.raw = match num_lines {
+                    0 => new_pw.clone(),
+                    _ => return Err(Error::new(ErrorKind::Other, "Raw content should be empty, but something is there!")),
+                };
+
+                // update the password
+                self.password = Some(new_pw);
+
+                // write the changes
+                self.write()
+            },
+            (None, false) => { // do nothing
+                Ok(())
+            }
         }
 
     }

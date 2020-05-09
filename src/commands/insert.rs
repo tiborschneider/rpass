@@ -58,7 +58,7 @@ pub fn insert(path: Option<&str>,
     let e = Entry::new(username, password, url, path);
     println!("{}", e);
 
-    e.write().expect("Cannot generate password!");
+    e.create().expect("Cannot create entry!");
 }
 
 fn question(q: &str) -> Option<String> {
