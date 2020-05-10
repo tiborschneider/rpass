@@ -3,12 +3,15 @@ use std::io::prelude::*;
 use std::clone::Clone;
 use std::fmt::Display;
 use std::io::{Error, ErrorKind};
+use std::{thread, time};
 
 use rustofi::components::{ActionList, ItemList, EntryBox};
 use rustofi::window::{Dimensions, Window};
 use rustofi::RustofiResult;
 use uuid::Uuid;
 use text_io::read;
+use clipboard::{ClipboardProvider, ClipboardContext};
+use notify_rust::{Notification, NotificationUrgency, Timeout};
 
 use crate::pass::index::{get_index, to_graph, to_hashmap_reverse};
 use crate::pass::entry::Entry;
@@ -23,7 +26,7 @@ pub fn rofi_display_item<'a, T: Display + Clone>(rofi: &mut ItemList<'a, T>, pro
         .clone()
         .lines(num_lines)
         .prompt(prompt)
-        .add_args(vec!["-no-case-sensitive".to_string()])
+        .add_args(vec!("-i".to_string()))
         .show(display_options.clone());
     match response {
         Ok(input) => {
@@ -54,7 +57,7 @@ pub fn rofi_display_action<'a, T: Display + Clone>(rofi: &mut ActionList<'a, T>,
         .clone()
         .lines(num_lines)
         .prompt(prompt)
-        .add_args(vec!["-no-case-sensitive".to_string()])
+        .add_args(vec!("-i".to_string()))
         .show(display_options.clone());
     match response {
         Ok(input) => {
@@ -221,44 +224,62 @@ fn confirm_stdio<S: AsRef<str>>(q: S) -> bool {
 
 fn confirm_rofi<S: AsRef<str>>(q: S) -> bool {
     let options = vec!["No".to_string(), "Yes".to_string()];
-    match Window::new(q.as_ref()).show(options) {
+    match Window::new(q.as_ref()).format('s').add_args(vec!("-i".to_string())).show(options) {
         Ok(s) => s == "Yes",
         Err(_) => false
     }
 }
 
-pub fn question<S: AsRef<str>>(q: S, use_rofi: bool) -> Option<String> {
+pub fn question<S: AsRef<str>>(q: S, use_rofi: bool) -> Result<Option<String>, Error> {
     match use_rofi {
-        true => question_rofi(q),
+        true => question_rofi(q, None),
         false => question_stdio(q)
     }
 }
 
-fn question_stdio<S: AsRef<str>>(q: S) -> Option<String> {
+fn question_stdio<S: AsRef<str>>(q: S) -> Result<Option<String>, Error> {
     print!("{}: ", q.as_ref());
     io::stdout().flush().ok().expect("Could not flush stdout");
     let answer: String = read!("{}\n");
     if answer.len() == 0 {
-        None
+        Ok(None)
     } else {
-        Some(answer)
+        Ok(Some(answer))
     }
 }
 
-fn question_rofi<S: AsRef<str>>(q: S) -> Option<String> {
-    let result = EntryBox::create_window()
-        .prompt(format!("{}", q.as_ref()))
-        .dimensions(Dimensions{width:1100, height:100, lines:1, columns:1})
-        .show(vec!["".to_string()]);
+pub fn question_rofi<S: AsRef<str>>(q: S, hint: Option<&String>) -> Result<Option<String>, Error> {
+    let result = match hint {
+        Some(h) => {
+            EntryBox::create_window()
+                .prompt(format!("{}", q.as_ref()))
+                .message("previous value:")
+                .lines(2)
+                .dimensions(Dimensions{width:1100, height:100, lines:2, columns:1})
+                .add_args(vec!("-i".to_string()))
+                .show(vec![format!("{}", h), "[Empty]".to_string()])
+        },
+        None => {
+            EntryBox::create_window()
+                .prompt(format!("{}", q.as_ref()))
+                .lines(1)
+                .dimensions(Dimensions{width:1100, height:100, lines:1, columns:1})
+                .add_args(vec!("-i".to_string()))
+                .show(vec!["[Empty]".to_string()])
+        }
+    };
+
     match result {
         Ok(input) => {
             if input == "" {
-                None
+                Err(Error::new(ErrorKind::Interrupted, "User interrupted question"))
+            } else if input == "[Empty]" {
+                Ok(None)
             } else {
-                Some(input)
+                Ok(Some(input))
             }
         }
-        Err(_) => None
+        Err(_) => Err(Error::new(ErrorKind::Interrupted, "User interrupted question"))
     }
 }
 
@@ -267,4 +288,76 @@ pub fn two_options<S: AsRef<str>>(primary: S, secondary: S) -> bool {
     io::stdout().flush().ok().expect("Could not flush stdout");
     let answer: String = read!("{}\n");
     answer != "2"
+}
+
+pub fn copy_to_clipboard<S: AsRef<str>>(s: String, action: S, wait_for: Option<u64>) -> Result<(), Error> {
+
+    let mut ctx: ClipboardContext = match ClipboardProvider::new() {
+        Ok(ctx) => ctx,
+        Err(_) => return Err(Error::new(ErrorKind::Other, "Cannot generate clipboard context"))
+    };
+
+    match ctx.set_contents(s) {
+        Ok(_) => {},
+        Err(_) => return Err(Error::new(ErrorKind::Other, "Cannot set clipboard content!"))
+    };
+
+    let action_string = format!("Copied {}", action.as_ref());
+
+    Notification::new()
+        .summary(action_string.as_str())
+        .urgency(NotificationUrgency::Normal)
+        .timeout(Timeout::Milliseconds(5000))
+        .show().unwrap();
+
+    match wait_for {
+        Some(duration) => delayed_clipboard_clear(duration),
+        None => Ok(())
+    }
+}
+
+pub fn delayed_clipboard_clear(duration: u64) -> Result<(), Error> {
+
+    // wait for 5 seconds
+    let ten_millis = time::Duration::from_millis(duration);
+    thread::sleep(ten_millis);
+
+    Ok(())
+}
+
+pub fn notify_error(e: Error) {
+    match e.kind() {
+        ErrorKind::Interrupted => {
+            Notification::new()
+                .summary("User interrupted action")
+                .urgency(NotificationUrgency::Low)
+                .timeout(Timeout::Milliseconds(4000))
+                .show().unwrap();
+        },
+        ErrorKind::InvalidInput => {
+            Notification::new()
+                .summary("Action failed!")
+                .body("User input is invalid")
+                .urgency(NotificationUrgency::Normal)
+                .timeout(Timeout::Milliseconds(10000))
+                .show().unwrap();
+        },
+        _ => {
+            Notification::new()
+                .summary("Action failed!")
+                .body(format!("Error: {:?}", e).as_ref())
+                .urgency(NotificationUrgency::Normal)
+                .timeout(Timeout::Milliseconds(30000))
+                .show().unwrap();
+        }
+    }
+}
+
+pub fn notify_action<S: AsRef<str>>(action: S) {
+    Notification::new()
+        .summary("Success!")
+        .body(action.as_ref())
+        .urgency(NotificationUrgency::Low)
+        .timeout(Timeout::Milliseconds(4000))
+        .show().unwrap();
 }

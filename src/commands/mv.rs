@@ -8,13 +8,16 @@ pub fn mv(path: Option<&str>,
 
     let mut entry = choose_entry(path, id)?;
 
-    println!("Moving {}", entry);
+    if !use_rofi {
+        println!("Moving {}", entry);
+    }
+
     let dst_string = match dst {
         Some(s) => s.to_string(),
         None => {
             let result = match use_rofi {
                 true => gen_path_interactive()?,
-                false => question("path", use_rofi)
+                false => question("path", use_rofi)?
             };
             match result {
                 Some(s) => s,
@@ -26,7 +29,9 @@ pub fn mv(path: Option<&str>,
     // pass::index::mv(entry.uuid, dst_string.clone()).expect("Could not move the key!");
     entry.change_path(dst_string.clone())?;
 
-    println!("Moved entry to {}", dst_string);
+    if !use_rofi {
+        println!("Moved entry to {}", dst_string);
+    }
 
     Ok(())
 }

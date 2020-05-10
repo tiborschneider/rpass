@@ -2,6 +2,7 @@ use clap::{Arg, App, SubCommand};
 
 mod pass;
 mod commands;
+mod rofi_app;
 
 const DEFAULT_PW_SIZE: usize = 20;
 
@@ -11,6 +12,10 @@ fn main() {
         .version("0.1")
         .author("Tibor Schneider <tiborschneider@bluewin.ch>")
         .about("Manage pass without leaking information")
+        .subcommand(
+            SubCommand::with_name("menu")
+                .about("Interactive app with rofi interface")
+        )
         .subcommand(
             SubCommand::with_name("interactive")
                 .about("Copy username or password to clipboard using interactive dmenu")
@@ -167,11 +172,14 @@ fn main() {
         .get_matches();
 
     match matches.subcommand() {
+        ("menu", _)            => rofi_app::rofi_app(),
         ("interactive", _)     => commands::interactive(),
         ("get",    Some(args)) => commands::get(args.value_of("path"),
-                                                args.value_of("uuid")),
+                                                args.value_of("uuid"),
+                                                false),
         ("edit",   Some(args)) => commands::edit(args.value_of("path"),
-                                                 args.value_of("uuid")),
+                                                 args.value_of("uuid"),
+                                                 false),
         ("mv",     Some(args)) => commands::mv(args.value_of("path"),
                                                args.value_of("uuid"),
                                                args.value_of("dst"),
@@ -191,7 +199,8 @@ fn main() {
                                                    match args.is_present("generate") {
                                                        true => Some(DEFAULT_PW_SIZE),
                                                        false => None
-                                                   }),
+                                                   },
+                                                   false),
         ("rm", Some(args))     => commands::delete(args.value_of("path"),
                                                    args.value_of("uuid"),
                                                    args.is_present("force"),

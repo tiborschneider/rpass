@@ -44,22 +44,45 @@ impl fmt::Display for Entry {
         if let Some(ref url) = self.url {
             write!(f, "    url:      {}\n", url)?;
         }
-        if !self.hidden {
-            let mut lines_iter = self.raw.lines().into_iter();
-            lines_iter.next();
-            let mut raw_printed = false;
-            for line in lines_iter {
-                if !(line.starts_with(USER_KEY) ||
-                     line.starts_with(PATH_KEY) ||
-                     line.starts_with(UUID_KEY) ||
-                     line.starts_with(URL_KEY) ||
-                     line.len() == 0) {
-                    if !raw_printed {
-                        write!(f, "    raw:\n")?;
-                        raw_printed = true;
-                    }
-                    write!(f, "        {}\n", line)?;
+        Ok(())
+
+    }
+}
+
+impl fmt::Debug for Entry {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        write!(f, "Entry: {}\n", self.uuid)?;
+        if let Some(ref username) = self.username {
+            write!(f, "    username: {}\n", username)?;
+        }
+        if let Some(ref password) = self.password {
+            let hidden_pw: String = match self.hidden {
+                true => iter::repeat("*").take(password.len()).collect(),
+                false => password.clone()
+            };
+            write!(f, "    password: {}\n", hidden_pw)?;
+        }
+        if let Some(ref path) = self.path {
+            write!(f, "    path:     {}\n", path)?;
+        }
+        if let Some(ref url) = self.url {
+            write!(f, "    url:      {}\n", url)?;
+        }
+        let mut lines_iter = self.raw.lines().into_iter();
+        lines_iter.next();
+        let mut raw_printed = false;
+        for line in lines_iter {
+            if !(line.starts_with(USER_KEY) ||
+                    line.starts_with(PATH_KEY) ||
+                    line.starts_with(UUID_KEY) ||
+                    line.starts_with(URL_KEY) ||
+                    line.len() == 0) {
+                if !raw_printed {
+                    write!(f, "    raw:\n")?;
+                    raw_printed = true;
                 }
+                write!(f, "        {}\n", line)?;
             }
         }
         Ok(())
@@ -119,7 +142,10 @@ impl Entry {
     }
 
     pub fn get(id: Uuid) -> Result<Entry, Error> {
-        let raw = Entry::get_raw(id)?;
+        let mut raw = Entry::get_raw(id)?;
+        if !raw.ends_with("\n") {
+            raw.push('\n');
+        }
         let mut e = Entry {
             username: None,
             password: None,
@@ -225,67 +251,182 @@ impl Entry {
 
     }
 
-    pub fn change_password(&mut self, passwd: Option<String>) -> Result<(), Error> {
-
-        match (passwd, self.password.is_some()) {
-            (Some(new_pw), true) => { // replace password
+    pub fn change_username(&mut self, username: Option<String>) -> Result<(), Error> {
+        match (username, self.username.is_some()) {
+            (Some(new_user), true) => { // replace username
                 let raw_clone = self.raw.clone();
-                let mut lines_iter = raw_clone.lines();
                 self.raw = String::new();
-
-                // write the new password
-                self.raw.push_str(format!("{}\n", new_pw).as_str());
-                // skip first line, which must contain the password
-                lines_iter.next();
-
-                // write the rest
+                for line in raw_clone.lines() {
+                    if line.starts_with(USER_KEY) {
+                        self.raw.push_str(USER_KEY);
+                        self.raw.push_str(new_user.as_ref());
+                    } else {
+                        self.raw.push_str(line);
+                    }
+                    self.raw.push('\n');
+                }
+                self.username = Some(new_user);
+                self.write()
+            },
+            (None, true) => { // remove username
+                let raw_clone = self.raw.clone();
+                self.raw = String::new();
+                for line in raw_clone.lines() {
+                    if !line.starts_with(USER_KEY) {
+                        self.raw.push_str(line);
+                    }
+                    self.raw.push('\n');
+                }
+                self.username = None;
+                self.write()
+            },
+            (Some(new_user), false) => { // add username
+                let raw_clone = self.raw.clone();
+                self.raw = String::new();
+                let lines: Vec<&str> = raw_clone.lines().collect();
+                if lines.len() == 0 {
+                    return Err(Error::new(ErrorKind::InvalidData, "No password found!"));
+                }
+                let mut lines_iter = lines.into_iter();
+                // push password
+                self.raw.push_str(lines_iter.next().unwrap());
+                self.raw.push('\n');
+                // push username
+                self.raw.push_str(USER_KEY);
+                self.raw.push_str(new_user.as_ref());
+                self.raw.push('\n');
+                // push the rest
                 for line in lines_iter {
                     self.raw.push_str(line);
                     self.raw.push('\n');
                 }
-
-                // update the password
-                self.password = Some(new_pw);
-
-                // write the changes
-                self.write()
-            },
-            (None, true) => { // remove password
-                // remove the first line in raw
-                let num_lines = self.raw.len();
-                self.raw = match num_lines {
-                    0 => return Err(Error::new(ErrorKind::Other, "Raw content is already empty, but a password should exist!")),
-                    1 => "".to_string(),
-                    len => {
-                        let lines: Vec<&str> = self.raw.lines().collect();
-                        lines[1..len].join("\n")
-                    }
-                };
-
-                // update the password
-                self.password = None;
-
-                // write the changes
-                self.write()
-            },
-            (Some(new_pw), false) => { // add password
-                let num_lines = self.raw.len();
-                self.raw = match num_lines {
-                    0 => new_pw.clone(),
-                    _ => return Err(Error::new(ErrorKind::Other, "Raw content should be empty, but something is there!")),
-                };
-
-                // update the password
-                self.password = Some(new_pw);
-
-                // write the changes
+                self.username = Some(new_user);
                 self.write()
             },
             (None, false) => { // do nothing
                 Ok(())
             }
         }
+    }
 
+    pub fn change_url(&mut self, url: Option<String>) -> Result<(), Error> {
+        match (url, self.url.is_some()) {
+            (Some(new_url), true) => { // replace username
+                let raw_clone = self.raw.clone();
+                self.raw = String::new();
+                for line in raw_clone.lines() {
+                    if line.starts_with(URL_KEY) {
+                        self.raw.push_str(URL_KEY);
+                        self.raw.push_str(new_url.as_ref());
+                    } else {
+                        self.raw.push_str(line);
+                    }
+                    self.raw.push('\n');
+                }
+                self.url = Some(new_url);
+                self.write()
+            },
+            (None, true) => { // remove username
+                let raw_clone = self.raw.clone();
+                self.raw = String::new();
+                for line in raw_clone.lines() {
+                    if !line.starts_with(URL_KEY) {
+                        self.raw.push_str(line);
+                    }
+                    self.raw.push('\n');
+                }
+                self.url = None;
+                self.write()
+            },
+            (Some(new_url), false) => { // add username
+                let raw_clone = self.raw.clone();
+                self.raw = String::new();
+                for line in raw_clone.lines() {
+                    self.raw.push_str(line);
+                    self.raw.push('\n');
+                }
+                // push the url last
+                self.raw.push_str(URL_KEY);
+                self.raw.push_str(new_url.as_ref());
+                self.raw.push('\n');
+                self.url = Some(new_url);
+                self.write()
+            },
+            (None, false) => { // do nothing
+                Ok(())
+            }
+        }
+    }
+
+    pub fn change_password(&mut self, new_pw: String) -> Result<(), Error> {
+
+        if self.password.is_none() {
+            return Err(Error::new(ErrorKind::InvalidData, "No password present"));
+        }
+
+        // change the password
+        let raw_clone = self.raw.clone();
+        let mut lines_iter = raw_clone.lines();
+        self.raw = String::new();
+
+        // write the new password
+        self.raw.push_str(format!("{}\n", new_pw).as_str());
+        // skip first line, which must contain the password
+        lines_iter.next();
+
+        // write the rest
+        for line in lines_iter {
+            self.raw.push_str(line);
+            self.raw.push('\n');
+        }
+
+        // update the password
+        self.password = Some(new_pw);
+
+        // write the changes
+        self.write()
+
+    }
+
+    pub fn change_raw_line(&mut self, old_line: Option<String>, new_line: Option<String>) -> Result<(), Error> {
+
+        match old_line {
+            Some(old_line) => {
+
+                // replace the old line
+                let mut found: bool = false;
+                let raw_clone = self.raw.clone();
+                self.raw = String::new();
+
+                for line in raw_clone.lines() {
+                    if line == old_line {
+                        found = true;
+                        match new_line.clone() {
+                            Some(new_line) => { self.raw.push_str(new_line.as_str());
+                                                self.raw.push('\n'); },
+                            None => {}
+                        }
+                    } else {
+                        self.raw.push_str(line);
+                        self.raw.push('\n');
+                    }
+                }
+
+                match found {
+                    true => self.write(),
+                    false => Err(Error::new(ErrorKind::InvalidInput, "Could not find the line to edit"))
+                }
+            },
+            None => {
+                // insert new line
+                match new_line {
+                    Some(new_line) => { self.raw.push_str(new_line.as_str());
+                                        self.raw.push('\n');
+                                        self.write() },
+                    None => Ok(())
+                }
+            }
+        }
     }
 
     pub fn change_path(&mut self, new_path: String) -> Result<(), Error> {
@@ -323,6 +464,60 @@ impl Entry {
 
         self.write()
 
+    }
+
+    pub fn get_string(&self) -> String {
+        let mut s = String::new();
+
+        s.push_str("path: ");
+        s.push_str(self.path.as_ref().unwrap());
+        s.push('\n');
+
+        s.push_str("uuid: ");
+        s.push_str(format!("{}", self.uuid).as_ref());
+        s.push('\n');
+        
+        s.push_str("username: ");
+        s.push_str(match self.username.as_ref() {
+            Some(s) => s,
+            None => "[Empty]"
+        });
+        s.push('\n');
+
+        if let Some(ref password) = self.password {
+            let hidden_pw: String = match self.hidden {
+                true => iter::repeat("*").take(password.len()).collect(),
+                false => password.clone()
+            };
+            s.push_str("password: ");
+            s.push_str(hidden_pw.as_ref());
+            s.push('\n');
+        } else {
+            panic!("Password is required!")
+        }
+
+        s.push_str("url: ");
+        s.push_str(match self.url.as_ref() {
+            Some(s) => s,
+            None => "[Empty]"
+        });
+        s.push('\n');
+
+        s.push_str("[Raw]:\n");
+
+        let mut lines_iter = self.raw.lines().into_iter();
+        lines_iter.next();
+        for line in lines_iter {
+            if !(line.starts_with(USER_KEY) ||
+                    line.starts_with(PATH_KEY) ||
+                    line.starts_with(UUID_KEY) ||
+                    line.starts_with(URL_KEY) ||
+                    line.len() == 0) {
+                s.push_str(line);
+                s.push('\n');
+            }
+        }
+        s
     }
 
 }

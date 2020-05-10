@@ -1,12 +1,9 @@
 use std::io::prelude::*;
 use std::io::{Error, ErrorKind, Write, BufReader};
-use std::{thread, time};
 use std::path::Path;
 use std::fs::{File, remove_file, OpenOptions};
 
 use uuid::Uuid;
-use clipboard::{ClipboardProvider, ClipboardContext};
-use notify_rust::{Notification, NotificationUrgency, Timeout};
 
 use rustofi::components::{ActionList, ItemList};
 use rustofi::window::Dimensions;
@@ -82,14 +79,12 @@ fn action_copy_entry(entry: &Entry, action: &String) -> RustofiResult {
         _ => panic!("Unknown action chosen!")
     };
 
-    copy_to_clipboard(entry_to_copy, action).expect("Cannot copy to clipboard");
-
     if copy_both {
         write_next_entry(entry.uuid).expect("Cannot write next entry");
-        delayed_clipboard_clear(false).expect("Cannot clear clipboard");
-    } else {
-        delayed_clipboard_clear(true).expect("Cannot clear clipboard");
     }
+
+    utils::copy_to_clipboard(entry_to_copy, action, Some(5000)).expect("Cannot copy to clipboard");
+
     RustofiResult::Success
 }
 
@@ -118,55 +113,5 @@ fn write_next_entry(id: Uuid) -> Result<(), Error> {
         .write(true)
         .open(LAST_COMMAND_FILE)?
         .write_all(format!("{}\n", id).as_bytes())?;
-    Ok(())
-}
-
-fn copy_to_clipboard(s: String, action: &String) -> Result<(), Error> {
-
-    let mut ctx: ClipboardContext = match ClipboardProvider::new() {
-        Ok(ctx) => ctx,
-        Err(_) => return Err(Error::new(ErrorKind::Other, "Cannot generate clipboard context"))
-    };
-
-    match ctx.set_contents(s) {
-        Ok(_) => {},
-        Err(_) => return Err(Error::new(ErrorKind::Other, "Cannot set clipboard content!"))
-    };
-
-    let action_string = format!("Copied {}", action);
-
-    Notification::new()
-        .summary(action_string.as_str())
-        .urgency(NotificationUrgency::Normal)
-        .timeout(Timeout::Milliseconds(5000))
-        .show().unwrap();
-
-    Ok(())
-}
-
-fn delayed_clipboard_clear(do_clear: bool) -> Result<(), Error> {
-
-    // wait for 5 seconds
-    let ten_millis = time::Duration::from_millis(5000);
-    thread::sleep(ten_millis);
-
-    if do_clear {
-        // clear the clipboard
-        let mut ctx: ClipboardContext = match ClipboardProvider::new() {
-            Ok(ctx) => ctx,
-            Err(_) => return Err(Error::new(ErrorKind::Other, "Cannot generate clipboard context"))
-        };
-        match ctx.set_contents(" ".to_string()) {
-            Ok(_) => {},
-            Err(_) => return Err(Error::new(ErrorKind::Other, "Cannot set clipboard content!"))
-        };
-
-        Notification::new()
-            .summary("Clipboard cleared!")
-            .urgency(NotificationUrgency::Low)
-            .timeout(Timeout::Milliseconds(1000))
-            .show().unwrap();
-    }
-
     Ok(())
 }

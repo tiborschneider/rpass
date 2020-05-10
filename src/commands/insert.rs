@@ -3,7 +3,7 @@ use rpassword;
 use fake::{Fake, faker};
 
 use crate::pass::entry::Entry;
-use crate::commands::utils;
+use crate::commands::{utils, get};
 
 pub fn insert(path: Option<&str>,
               username: Option<&str>,
@@ -21,12 +21,12 @@ pub fn insert(path: Option<&str>,
                         println!("path: {}", s);
                         s
                     },
-                    None => return Err(Error::new(ErrorKind::Interrupted, "path is required!")),
+                    None => return Err(Error::new(ErrorKind::InvalidInput, "path is required!")),
                 }
             } else {
-                match utils::question("path", use_rofi) {
+                match utils::question("path", use_rofi)? {
                     Some(s) => s,
-                    None => return Err(Error::new(ErrorKind::Interrupted, "path is required!"))
+                    None => return Err(Error::new(ErrorKind::InvalidInput, "path is required!"))
                 }
             }
         }
@@ -34,7 +34,7 @@ pub fn insert(path: Option<&str>,
 
     let username = match username {
         Some(s) => Some(s.to_string()),
-        None => utils::question("username", use_rofi)
+        None => utils::question("username", use_rofi)?
     };
 
     let password = match generate {
@@ -42,30 +42,43 @@ pub fn insert(path: Option<&str>,
         None => match password {
             Some(s) => s.to_string(),
             None => {
-                let mut passwd: String;
-                loop {
-                    passwd = rpassword::prompt_password_stdout("Enter a password: ")?;
-                    let rp = rpassword::prompt_password_stdout("Repeat the password: ")?;
-                    if passwd == rp {
-                        break;
-                    } else {
-                        println!("The two passwords don't match. try again!");
+                if use_rofi {
+                    match utils::question("password", use_rofi)? {
+                        Some(pw) => pw,
+                        None => return Err(Error::new(ErrorKind::InvalidInput, "Password is required!"))
                     }
+                } else {
+                    let mut passwd: String;
+                    loop {
+                        passwd = rpassword::prompt_password_stdout("Enter a password: ")?;
+                        let rp = rpassword::prompt_password_stdout("Repeat the password: ")?;
+                        if passwd == rp {
+                            break;
+                        } else {
+                            println!("The two passwords don't match. try again!");
+                        }
+                    }
+                    passwd
                 }
-                passwd
             }
         }
     };
 
     let url = match url {
         Some(s) => Some(s.to_string()),
-        None => utils::question("url", use_rofi)
+        None => utils::question("url", use_rofi)?
     };
 
     let e = Entry::new(username, password, url, path);
-    println!("{}", e);
 
-    e.create()
+    e.create()?;
+
+    if use_rofi {
+        get(None, Some(format!("{}", e.uuid).as_str()), use_rofi)
+    } else {
+        println!("Created {}", e);
+        Ok(())
+    }
 }
 
 fn generate_password(x: usize) -> String {

@@ -11,7 +11,9 @@ pub fn delete(path: Option<&str>,
     let entry = choose_entry(path, id)?;
 
     if !force {
-        println!("{}", entry);
+        if !use_rofi {
+            println!("{}", entry);
+        }
         match confirm("Are you sure to delete this entry?", use_rofi) {
             true  => pass::index::remove(entry.uuid),
             false => Err(Error::new(ErrorKind::Interrupted, "Not confirmed!"))

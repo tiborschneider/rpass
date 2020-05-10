@@ -3,7 +3,7 @@ mod get;
 mod insert;
 mod interactive;
 mod list;
-mod utils;
+pub mod utils;
 mod mv;
 mod passwd;
 mod edit;
