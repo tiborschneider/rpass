@@ -13,6 +13,14 @@ const PATH_KEY: &str = "path: ";
 const URL_KEY: &str = "url: ";
 const UUID_KEY: &str = "uuid: ";
 
+pub const PANGO_PATH_NAME: &str     = "<span size='smaller' alpha='50%'><tt>    path  </tt></span>";
+pub const PANGO_UUID_NAME: &str     = "<span size='smaller' alpha='50%'><tt>    uuid  </tt></span>";
+pub const PANGO_USERNAME_NAME: &str = "<span size='smaller' alpha='50%'><tt>username  </tt></span>";
+pub const PANGO_PASSWORD_NAME: &str = "<span size='smaller' alpha='50%'><tt>password  </tt></span>";
+pub const PANGO_URL_NAME: &str      = "<span size='smaller' alpha='50%'><tt>     url  </tt></span>";
+pub const PANGO_RAW_NAME: &str      = "<span size='smaller' alpha='50%'><tt>raw data</tt></span>";
+const PANGO_EMPTY_NAME: &str        = "<span size='smaller' alpha='50%'>empty</span>";
+
 #[derive(Clone)]
 pub struct Entry {
     pub username: Option<String>,
@@ -469,42 +477,41 @@ impl Entry {
     pub fn get_string(&self) -> String {
         let mut s = String::new();
 
-        s.push_str("path: ");
-        s.push_str(self.path.as_ref().unwrap());
+        s.push_str(PANGO_PATH_NAME);
+        s.push_str(escape_pango(self.path.clone().unwrap()).as_str());
         s.push('\n');
 
-        s.push_str("uuid: ");
+        s.push_str(PANGO_UUID_NAME);
         s.push_str(format!("{}", self.uuid).as_ref());
         s.push('\n');
         
-        s.push_str("username: ");
-        s.push_str(match self.username.as_ref() {
-            Some(s) => s,
-            None => "[Empty]"
-        });
+        s.push_str(PANGO_USERNAME_NAME);
+        match self.username.clone() {
+            Some(username) => s.push_str(escape_pango(username).as_ref()),
+            None => s.push_str(PANGO_EMPTY_NAME)
+        };
         s.push('\n');
 
         if let Some(ref password) = self.password {
             let hidden_pw: String = match self.hidden {
                 true => iter::repeat("*").take(password.len()).collect(),
-                false => password.clone()
+                false => escape_pango(password.clone())
             };
-            s.push_str("password: ");
+            s.push_str(PANGO_PASSWORD_NAME);
             s.push_str(hidden_pw.as_ref());
             s.push('\n');
         } else {
             panic!("Password is required!")
         }
 
-        s.push_str("url: ");
-        s.push_str(match self.url.as_ref() {
-            Some(s) => s,
-            None => "[Empty]"
-        });
+        s.push_str(PANGO_URL_NAME);
+        match self.url.clone() {
+            Some(url) => s.push_str(escape_pango(url).as_ref()),
+            None => s.push_str(PANGO_EMPTY_NAME)
+        };
         s.push('\n');
 
-        s.push_str("[Raw]:\n");
-
+        let mut raw_str_printed = false;
         let mut lines_iter = self.raw.lines().into_iter();
         lines_iter.next();
         for line in lines_iter {
@@ -513,11 +520,20 @@ impl Entry {
                     line.starts_with(UUID_KEY) ||
                     line.starts_with(URL_KEY) ||
                     line.len() == 0) {
-                s.push_str(line);
+                if !raw_str_printed {
+                    raw_str_printed = true;
+                    s.push_str(PANGO_RAW_NAME);
+                    s.push('\n');
+                }
+                s.push_str(escape_pango(line.to_string()).as_ref());
                 s.push('\n');
             }
         }
         s
     }
 
+}
+
+fn escape_pango(s: String) -> String {
+    s.replace("&", "&amp;").replace(">", "&gt;").replace("<", "&lt;")
 }

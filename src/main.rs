@@ -9,7 +9,7 @@ const DEFAULT_PW_SIZE: usize = 20;
 fn main() {
 
     let matches = App::new("rpass")
-        .version("0.1")
+        .version("0.2.0")
         .author("Tibor Schneider <tiborschneider@bluewin.ch>")
         .about("Manage pass without leaking information")
         .subcommand(
@@ -207,8 +207,7 @@ fn main() {
                                                    false),
         ("ls", _)              => commands::list(),
         ("fix-index", _)       => commands::fix_index(),
-        _                      => { println!("{}", matches.usage());
-                                    Ok(()) }
+        _                      => rofi_app::rofi_app()
     }.expect("Something went wrong");
 
 }

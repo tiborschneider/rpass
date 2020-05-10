@@ -1,3 +1,4 @@
+use std::fmt;
 use std::io::prelude::*;
 use std::io::{Error, ErrorKind, Write, BufReader};
 use std::path::Path;
@@ -5,87 +6,89 @@ use std::fs::{File, remove_file, OpenOptions};
 
 use uuid::Uuid;
 
-use rustofi::components::{ActionList, ItemList};
-use rustofi::window::Dimensions;
-use rustofi::RustofiResult;
+use rustofi::window::{Dimensions, Window};
 
-use crate::pass;
 use crate::pass::entry::Entry;
 use crate::commands::utils;
 
 const LAST_COMMAND_FILE: &str = "/home/tibor/.cache/rpass_last";
-const USERNAME: &str = "Username";
-const PASSWORD: &str = "Password";
-const BOTH: &str = "Both";
+const USERNAME: &str = "<span fgcolor='#7EAFE9'>Username</span>";
+const PASSWORD: &str = "<span fgcolor='#7EAFE9'>Password</span>";
+const BOTH: &str = "<span fgcolor='#7EAFE9'>Both</span>";
+const EXIT: &str = "<span size='small' alpha='50%'>exit</span>";
 
 pub fn interactive() -> Result<(), Error> {
-    // check if there was a previous access to copy both username and password to clipboard
-    let result = match previous_entry()? {
+    // choose the entry
+    match previous_entry()? {
         Some(id) => {
-            let entry = pass::entry::Entry::get(id)?;
-            action_copy_entry(&entry, &PASSWORD.to_string())
+            let entry = Entry::get(id)?;
+            action_copy_entry(&entry, CopyAction::Password)
         },
         None => {
-            // generate the list view
-            let path_list = pass::index::get_path_list()?;
-            let mut rofi = ItemList::new(path_list, Box::new(choose_action_callback));
-            rofi.window = rofi.window.dimensions(Dimensions {width: 900, height: 800, lines: 10, columns: 1});
-            utils::rofi_display_item(&mut rofi, "Choose an entry".to_string(), 10)
+            let entry = utils::choose_entry(None, None)?;
+
+            let lines: Vec<String> = vec![USERNAME.to_string(),
+                                        PASSWORD.to_string(),
+                                        BOTH.to_string(),
+                                        EXIT.to_string()];
+            match Window::new("What to copy?")
+                .dimensions(Dimensions{width: 400, height: 1000, lines: 4, columns: 1})
+                .lines(lines.len() as i32)
+                .format('s')
+                .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
+                .show(lines.clone()) {
+                Ok(s)  => action_copy_entry(&entry, get_copy_action(s)),
+                Err(_) => Err(Error::new(ErrorKind::Other, "Rofi exited unsuccessfully"))
+            }
         }
-    };
-
-    match result {
-        RustofiResult::Success => Ok(()),
-        RustofiResult::Blank   => Err(Error::new(ErrorKind::Interrupted, "Blank option chosen")),
-        RustofiResult::Error   => Err(Error::new(ErrorKind::Other, "Unexpected rofi error")),
-        RustofiResult::Cancel  => Err(Error::new(ErrorKind::Interrupted, "Rofi cancelled")),
-        RustofiResult::Exit    => Err(Error::new(ErrorKind::Interrupted, "Exit option chosen")),
-        _                      => Err(Error::new(ErrorKind::Other, "Unexpected rofi error"))
     }
 }
 
-fn choose_action_callback(entry_path: &String) -> RustofiResult {
-    let index_list = pass::index::get_index().expect("Cannot get index list!");
-    let reverse_lookup = pass::index::to_hashmap_reverse(&index_list);
-    let entry_id = match reverse_lookup.get(entry_path.as_str()) {
-        Some(id) => id,
-        None => return RustofiResult::Error
-    };
+enum CopyAction {
+    Username,
+    Password,
+    Both,
+    Exit
+}
 
-    let entry = Entry::get(entry_id.clone()).expect("Cannot find the entry");
-
-    match (entry.username.is_some(), entry.password.is_some()) {
-        (true, false) => action_copy_entry(&entry, &USERNAME.to_string()),
-        (false, true) => action_copy_entry(&entry, &PASSWORD.to_string()),
-        (true, true)  => ActionList::new(entry,
-                                          vec![USERNAME.to_string(),
-                                               PASSWORD.to_string(),
-                                               BOTH.to_string()],
-                                          Box::new(action_copy_entry)).display("Copy".to_string()),
-        _             => panic!("No username or password found for entry!")
+impl fmt::Display for CopyAction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CopyAction::Username => write!(f, "Username"),
+            CopyAction::Password => write!(f, "Password"),
+            CopyAction::Both => write!(f, "Both"),
+            CopyAction::Exit => write!(f, "Exit"),
+        }
     }
 }
 
-fn action_copy_entry(entry: &Entry, action: &String) -> RustofiResult {
-    let entry = entry.clone();
+fn get_copy_action(s: String) -> CopyAction {
+    if s == USERNAME { CopyAction::Username }
+    else if s == PASSWORD { CopyAction::Password }
+    else if s == BOTH { CopyAction::Both }
+    else { CopyAction::Exit }
+}
+
+fn action_copy_entry(entry: &Entry, action: CopyAction) -> Result<(), Error> {
     let mut copy_both: bool = false;
-    let entry_to_copy: String = match action.as_str() {
-        USERNAME => entry.username.unwrap(),
-        PASSWORD => entry.password.unwrap(),
-        BOTH => {
+    let entry_to_copy: String = match action {
+        CopyAction::Username => entry.username.clone().unwrap(),
+        CopyAction::Password => entry.password.clone().unwrap(),
+        CopyAction::Both => {
             copy_both = true;
-            entry.username.unwrap()
+            entry.username.clone().unwrap()
         }
-        _ => panic!("Unknown action chosen!")
+        CopyAction::Exit => return Err(Error::new(ErrorKind::Interrupted, "Interrupted"))
     };
 
-    if copy_both {
-        write_next_entry(entry.uuid).expect("Cannot write next entry");
-    }
+    let action_str = if copy_both {
+        write_next_entry(entry.uuid)?;
+        format!("{}", CopyAction::Username)
+    } else {
+        format!("{}", action)
+    };
 
-    utils::copy_to_clipboard(entry_to_copy, action, Some(5000)).expect("Cannot copy to clipboard");
-
-    RustofiResult::Success
+    utils::copy_to_clipboard(entry_to_copy, action_str, Some(5000))
 }
 
 fn previous_entry() -> Result<Option<Uuid>, Error> {

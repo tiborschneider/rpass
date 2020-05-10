@@ -1,15 +1,16 @@
 use std::io::Error;
 
-use rustofi::window::Window;
+use rustofi::window::{Window, Dimensions};
 
 use crate::commands::utils::{choose_entry, copy_to_clipboard};
 use crate::commands::edit;
+use crate::pass::entry;
 use crate::pass::entry::Entry;
 
-const SHOW_PASSWORD_NAME: &str = "[Show Password]";
-const HIDE_PASSWORD_NAME: &str = "[Hide Password]";
-const EDIT_ENTRY_NAME: &str = "[Edit entry]";
-const MAIN_MENU_NAME: &str = "[Main menu]";
+const SHOW_PASSWORD_NAME: &str = "<span size='small' fgcolor='#7EAFE9'>Show Password</span>";
+const HIDE_PASSWORD_NAME: &str = "<span size='small' fgcolor='#7EAFE9'>Hide Password</span>";
+const EDIT_ENTRY_NAME: &str = "<span size='small' fgcolor='#7EAFE9'>Edit entry</span>";
+const MAIN_MENU_NAME: &str = "<span size='small' fgcolor='#7EAFE9'>Main menu</span>";
 
 pub fn get(path: Option<&str>,
            id: Option<&str>,
@@ -37,7 +38,12 @@ fn get_rofi_menu(entry: &mut Entry) -> Result<(), Error> {
         }
         lines.push(EDIT_ENTRY_NAME.to_string());
         lines.push(MAIN_MENU_NAME.to_string());
-        match Window::new("Entry").lines(lines.len() as i32).format('s').show(lines.clone()) {
+        match Window::new("Entry")
+            .dimensions(Dimensions{width: 1000, height: 1000, lines: 3, columns: 1})
+            .lines(lines.len() as i32)
+            .format('s')
+            .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
+            .show(lines.clone()) {
             Ok(s) => {
                 match get_menu_action(s) {
                     GetMenuAction::CopyPath     => copy_to_clipboard(entry.path.clone().unwrap(), "path", Some(5000))?,
@@ -76,11 +82,11 @@ fn get_menu_action(s: String) -> GetMenuAction {
     if s == SHOW_PASSWORD_NAME { GetMenuAction::ShowPassword }
     else if s == HIDE_PASSWORD_NAME { GetMenuAction::HidePassword }
     else if s == EDIT_ENTRY_NAME { GetMenuAction::EditEntry }
-    else if s.starts_with("path: ") { GetMenuAction::CopyPath }
-    else if s.starts_with("uuid: ") { GetMenuAction::CopyUuid }
-    else if s.starts_with("username: ") { GetMenuAction::CopyUsername }
-    else if s.starts_with("password: ") { GetMenuAction::CopyPassword }
-    else if s.starts_with("url: ") { GetMenuAction::CopyUrl }
+    else if s.starts_with(entry::PANGO_PATH_NAME) { GetMenuAction::CopyPath }
+    else if s.starts_with(entry::PANGO_UUID_NAME) { GetMenuAction::CopyUuid }
+    else if s.starts_with(entry::PANGO_USERNAME_NAME) { GetMenuAction::CopyUsername }
+    else if s.starts_with(entry::PANGO_PASSWORD_NAME) { GetMenuAction::CopyPassword }
+    else if s.starts_with(entry::PANGO_URL_NAME) { GetMenuAction::CopyUrl }
     else if s.len() > 0 && s != MAIN_MENU_NAME {GetMenuAction::CopyOther(s.clone()) }
     else { GetMenuAction::Exit }
 }

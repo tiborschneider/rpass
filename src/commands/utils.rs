@@ -16,8 +16,12 @@ use notify_rust::{Notification, NotificationUrgency, Timeout};
 use crate::pass::index::{get_index, to_graph, to_hashmap_reverse};
 use crate::pass::entry::Entry;
 
+const CANCEL_TEXT: &str = "<span size='small' fgcolor='#7EAFE9'>cancel</span>";
+const EMPTY_TEXT: &str = "<span size='small' fgcolor='#7EAFE9'>empty</span>";
+const NEW_TEXT: &str = "<span size='small' fgcolor='#7EAFE9'>New path</span>";
+
 pub fn rofi_display_item<'a, T: Display + Clone>(rofi: &mut ItemList<'a, T>, prompt: String, lines: usize) -> RustofiResult {
-    let extra = vec!["".to_string(), "[cancel]".to_string()];
+    let extra = vec!["".to_string(), CANCEL_TEXT.to_string()];
     let mut display_options: Vec<String> = rofi.items.iter().map(|s| s.clone().to_string()).collect();
     let num_lines: i32 = if lines > display_options.len() {display_options.len() as i32} else {lines as i32};
     display_options = display_options.into_iter().chain(extra.clone()).collect();
@@ -26,11 +30,11 @@ pub fn rofi_display_item<'a, T: Display + Clone>(rofi: &mut ItemList<'a, T>, pro
         .clone()
         .lines(num_lines)
         .prompt(prompt)
-        .add_args(vec!("-i".to_string()))
+        .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
         .show(display_options.clone());
     match response {
         Ok(input) => {
-            if input == "[cancel]" || input == "" {
+            if input == CANCEL_TEXT || input == "" {
                 RustofiResult::Cancel
             } else if input == " " {
                 RustofiResult::Blank
@@ -48,7 +52,7 @@ pub fn rofi_display_item<'a, T: Display + Clone>(rofi: &mut ItemList<'a, T>, pro
 }
 
 pub fn rofi_display_action<'a, T: Display + Clone>(rofi: &mut ActionList<'a, T>, prompt: String, lines: usize) -> RustofiResult {
-    let extra = vec!["".to_string(), "[cancel]".to_string()];
+    let extra = vec!["".to_string(), CANCEL_TEXT.to_string()];
     let mut display_options: Vec<String> = rofi.actions.iter().map(|s| s.to_string()).collect();
     let num_lines: i32 = if lines > display_options.len() {display_options.len() as i32} else {lines as i32};
     display_options = display_options.into_iter().chain(extra.clone()).collect();
@@ -57,11 +61,11 @@ pub fn rofi_display_action<'a, T: Display + Clone>(rofi: &mut ActionList<'a, T>,
         .clone()
         .lines(num_lines)
         .prompt(prompt)
-        .add_args(vec!("-i".to_string()))
+        .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
         .show(display_options.clone());
     match response {
         Ok(input) => {
-            if input == "[cancel]" || input == "" {
+            if input == CANCEL_TEXT || input == "" {
                 RustofiResult::Cancel
             } else if input == " " {
                 RustofiResult::Blank
@@ -105,7 +109,7 @@ pub fn choose_entry(path: Option<&str>, id: Option<&str>) -> Result<Entry, Error
             let mut path_list: Vec<String> = index_list.into_iter().map(|x| x.1).collect();
             path_list.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
             let mut rofi = ItemList::new(path_list, Box::new(identity_callback));
-            rofi.window = rofi.window.dimensions(Dimensions {width: 800, height: 800, lines: 10, columns: 1});
+            rofi.window = rofi.window.dimensions(Dimensions {width: 1000, height: 800, lines: 10, columns: 1});
             match rofi_display_item(&mut rofi, "Select an entry".to_string(), 10) {
                 RustofiResult::Selection(s) => {
                     let entry_id = match uuid_lookup.get(s.as_str()) {
@@ -160,7 +164,7 @@ pub fn gen_path_recursive(cur_path: String) -> RustofiResult {
     }
 
     let mut next_nodes: Vec<String> = Vec::new();
-    next_nodes.push("[New]".to_string());
+    next_nodes.push(NEW_TEXT.to_string());
     let mut walker = g.neighbors(last_node).detach();
     while let Some(child) = walker.next_node(&g) {
         if g.neighbors(child).count() >= 1 {
@@ -182,7 +186,7 @@ fn gen_path_callback(path: &String, option: &String) -> RustofiResult {
         cur_path.push_str("/");
     }
     match option.as_str() {
-        "[New]" => ask_for_path(&cur_path),
+        NEW_TEXT => ask_for_path(&cur_path),
         new_path => gen_path_recursive(format!("{}{}", cur_path, new_path))
     }
 }
@@ -256,16 +260,16 @@ pub fn question_rofi<S: AsRef<str>>(q: S, hint: Option<&String>) -> Result<Optio
                 .message("previous value:")
                 .lines(2)
                 .dimensions(Dimensions{width:1100, height:100, lines:2, columns:1})
-                .add_args(vec!("-i".to_string()))
-                .show(vec![format!("{}", h), "[Empty]".to_string()])
+                .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
+                .show(vec![format!("{}", h), EMPTY_TEXT.to_string()])
         },
         None => {
             EntryBox::create_window()
                 .prompt(format!("{}", q.as_ref()))
                 .lines(1)
                 .dimensions(Dimensions{width:1100, height:100, lines:1, columns:1})
-                .add_args(vec!("-i".to_string()))
-                .show(vec!["[Empty]".to_string()])
+                .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
+                .show(vec![EMPTY_TEXT.to_string()])
         }
     };
 
@@ -273,7 +277,7 @@ pub fn question_rofi<S: AsRef<str>>(q: S, hint: Option<&String>) -> Result<Optio
         Ok(input) => {
             if input == "" {
                 Err(Error::new(ErrorKind::Interrupted, "User interrupted question"))
-            } else if input == "[Empty]" {
+            } else if input == EMPTY_TEXT {
                 Ok(None)
             } else {
                 Ok(Some(input))

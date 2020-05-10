@@ -41,12 +41,6 @@ pub fn get_index() -> Result<Vec<(Uuid, String)>, Error> {
 
 }
 
-pub fn get_path_list() -> Result<Vec<String>, Error> {
-    let mut path_list: Vec<String> = get_index()?.into_iter().map(|x| x.1).collect();
-    path_list.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
-    Ok(path_list)
-}
-
 pub fn to_hashmap<'a>(index_list: &'a Vec<(Uuid, String)>) -> HashMap<Uuid, &'a str> {
     let mut map: HashMap<Uuid, &'a str> = HashMap::new();
     for (id, path) in index_list {
