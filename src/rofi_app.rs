@@ -3,14 +3,14 @@ use std::io::{Error, ErrorKind};
 use notify_rust::{Notification,
                   NotificationUrgency,
                   Timeout};
-use rustofi:: window::Window;
+use rustofi::window::{Window, Dimensions};
 
 use crate::commands::{insert, get, edit};
 use crate::commands::utils::{confirm, notify_error};
 
-const GET_NAME: &str = "<span weight='bold' fgcolor='#7EAFE9'>Get Entry</span>";
-const NEW_NAME: &str = "<span weight='bold' fgcolor='#7EAFE9'>New Entry</span>";
-const EDIT_NAME: &str = "<span weight='bold' fgcolor='#7EAFE9'>Edit Entry</span>";
+const GET_NAME: &str = "<span fgcolor='#7EAFE9'>Get Entry</span>";
+const NEW_NAME: &str = "<span fgcolor='#7EAFE9'>New Entry</span>";
+const EDIT_NAME: &str = "<span fgcolor='#7EAFE9'>Edit Entry</span>";
 const EXIT_NAME: &str = "<span size='small' fgcolor='#FFFFFF80'>Exit</span>";
 
 #[derive(Debug)]
@@ -40,7 +40,9 @@ fn main_menu() -> Action {
                        NEW_NAME.to_string(),
                        EDIT_NAME.to_string(),
                        EXIT_NAME.to_string()];
-    match Window::new("RPASS - Main Menu").lines(options.len() as i32)
+    match Window::new("RPASS - Main Menu")
+        .dimensions(Dimensions{width: 400, height: 400, lines: 1, columns: 1})
+        .lines(options.len() as i32)
         .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
         .format('s')
         .show(options) {
