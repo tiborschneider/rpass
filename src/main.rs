@@ -17,6 +17,15 @@ fn main() {
                 .about("Interactive app with rofi interface")
         )
         .subcommand(
+            SubCommand::with_name("init")
+                .about("Initializes rpass and start the migration.")
+                .arg(Arg::with_name("force")
+                     .short("f")
+                     .long("force")
+                     .help("automatically adds all entries to the index, without asking")
+                     .takes_value(false))
+        )
+        .subcommand(
             SubCommand::with_name("interactive")
                 .about("Copy username or password to clipboard using interactive dmenu")
         )
@@ -173,6 +182,7 @@ fn main() {
 
     match matches.subcommand() {
         ("menu", _)            => rofi_app::rofi_app(),
+        ("init", Some(args))   => commands::init(args.is_present("force")),
         ("interactive", _)     => commands::interactive(),
         ("get",    Some(args)) => commands::get(args.value_of("path"),
                                                 args.value_of("uuid"),

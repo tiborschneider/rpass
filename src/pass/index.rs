@@ -14,10 +14,15 @@ const INDEX_KEY: &str = "uuids/index";
 #[allow(dead_code)]
 pub fn get_index() -> Result<Vec<(Uuid, String)>, Error> {
     // execute pass command
-    let result_utf8 = Command::new("pass")
+    let output = Command::new("pass")
         .arg(INDEX_KEY)
-        .output()?
-        .stdout;
+        .output()?;
+
+    if !output.status.success() {
+        return Err(Error::new(ErrorKind::NotFound, "Index file was not found!"));
+    }
+
+    let result_utf8 = output.stdout;
 
     // parse to str
     let result = match String::from_utf8(result_utf8) {
@@ -105,9 +110,7 @@ pub fn to_graph<'a>(index_list: &'a Vec<(Uuid, String)>) -> (Graph<&'a str, ()>,
 
 }
 
-pub fn insert(id: Uuid, path: &String) -> Result<(), Error> {
-
-    let index_list = get_index()?;
+pub fn write(index_list: &Vec<(Uuid, String)>) -> Result<(), Error> {
 
     let mut p = Command::new("pass")
         .arg("insert")
@@ -118,12 +121,9 @@ pub fn insert(id: Uuid, path: &String) -> Result<(), Error> {
         .spawn()?;
 
     if let Some(mut writer) = p.stdin.take() {
-        // write the first element
-        writer.write_all(&format!("{} {}", id, path).into_bytes())?;
-        
         for (id, path) in index_list {
-            writer.write_all("\n".as_bytes())?;
             writer.write_all(&format!("{} {}", id, path).into_bytes())?;
+            writer.write_all("\n".as_bytes())?;
         }
     }
 
@@ -131,6 +131,12 @@ pub fn insert(id: Uuid, path: &String) -> Result<(), Error> {
 
     Ok(())
 
+}
+
+pub fn insert(id: Uuid, path: &String) -> Result<(), Error> {
+    let mut index_list = get_index()?;
+    index_list.push((id, path.to_string()));
+    write(&index_list)
 }
 
 pub fn remove(id: Uuid) -> Result<(), Error> {
@@ -147,80 +153,18 @@ pub fn remove(id: Uuid) -> Result<(), Error> {
         .arg(format!("{}/{}", ROOT_FOLDER, id))
         .output()?;
 
-    // rewrite the index list
-    let mut p = Command::new("pass")
-        .arg("insert")
-        .arg("--multiline")
-        .arg(INDEX_KEY)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::null())
-        .spawn()?;
-
-    if let Some(mut writer) = p.stdin.take() {
-        // write the first element
-        let mut index_iter = index_list.into_iter();
-        let (id, path) = index_iter.next().unwrap();
-        writer.write_all(&format!("{} {}", id, path).into_bytes())?;
-
-        // write all other elements
-        for (id, path) in index_iter {
-            writer.write_all("\n".as_bytes())?;
-            writer.write_all(&format!("{} {}", id, path).into_bytes())?;
-        }
-    }
-
-    p.wait()?;
-
-    Ok(())
+    write(&index_list)
 
 }
 
 pub fn mv(id: Uuid, dst: String) -> Result<(), Error> {
-    let index_list: Vec<(Uuid, String)> = get_index()?;
 
-    let mut index_list_mod: Vec<(Uuid, String)> = Vec::new();
+    let mut index_list: Vec<(Uuid, String)> = get_index()?
+        .into_iter()
+        .filter(|x| x.0 != id)
+        .collect();
 
-    let mut added: bool = false;
+    index_list.push((id, dst));
+    write(&index_list)
 
-    for (i, s) in index_list {
-        if i == id {
-            index_list_mod.push((i, dst.clone()));
-            added = true;
-        } else if s == dst {
-            return Err(Error::new(ErrorKind::AlreadyExists, "Destination already exists!"));
-        } else {
-            index_list_mod.push((i, s));
-        }
-    }
-
-    if !added {
-        println!("[Warning] mv for entry currently not existing in the index! Creating index for the entry...");
-        index_list_mod.push((id, dst.clone()));
-    }
-
-    // rewrite the index list
-    let mut p = Command::new("pass")
-        .arg("insert")
-        .arg("--multiline")
-        .arg(INDEX_KEY)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::null())
-        .spawn()?;
-
-    if let Some(mut writer) = p.stdin.take() {
-        // write the first element
-        let mut index_iter = index_list_mod.into_iter();
-        let (id, path) = index_iter.next().unwrap();
-        writer.write_all(&format!("{} {}", id, path).into_bytes())?;
-
-        // write all other elements
-        for (id, path) in index_iter {
-            writer.write_all("\n".as_bytes())?;
-            writer.write_all(&format!("{} {}", id, path).into_bytes())?;
-        }
-    }
-
-    p.wait()?;
-
-    Ok(())
 }

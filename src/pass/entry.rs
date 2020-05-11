@@ -9,9 +9,10 @@ use crate::pass::index;
 
 pub const ROOT_FOLDER: &str = "uuids";
 const USER_KEY: &str = "user: ";
-const PATH_KEY: &str = "path: ";
+const USER_KEY_ALT: &str = "username: ";
+pub const PATH_KEY: &str = "path: ";
 const URL_KEY: &str = "url: ";
-const UUID_KEY: &str = "uuid: ";
+pub const UUID_KEY: &str = "uuid: ";
 
 pub const PANGO_PATH_NAME: &str     = "<span size='smaller' alpha='50%'><tt>    path  </tt></span>";
 pub const PANGO_UUID_NAME: &str     = "<span size='smaller' alpha='50%'><tt>    uuid  </tt></span>";
@@ -173,7 +174,8 @@ impl Entry {
 
         // search for username and path
         for line in lines {
-            if line.starts_with(USER_KEY) {
+            let line = line.to_lowercase();
+            if line.starts_with(USER_KEY) || line.starts_with(USER_KEY_ALT) {
                 e.username = Some(line[USER_KEY.len()..].to_string());
             }
             if line.starts_with(PATH_KEY) {
@@ -185,6 +187,60 @@ impl Entry {
         }
 
         Ok(e)
+    }
+
+    pub fn from_path(path: String) -> Result<Entry, Error> {
+
+        let result_utf8 = Command::new("pass")
+            .arg(path)
+            .output()?
+            .stdout;
+
+        // parse to str
+        let raw = match String::from_utf8(result_utf8) {
+            Ok(r) => r,
+            Err(_) => return Err(Error::new(ErrorKind::InvalidData, "Cannot parse utf8!"))
+        };
+
+        let mut e = Entry {
+            username: None,
+            password: None,
+            path: None,
+            url: None,
+            uuid: Uuid::nil(),
+            raw: raw.clone(),
+            hidden: true
+        };
+
+        // add password (first line)
+        let mut lines = raw.lines();
+        e.password = match lines.next() {
+            Some(s) => Some(s.to_string()),
+            None => None
+        };
+
+        // search for username and path
+        for line in lines {
+            let line = line.to_lowercase();
+            if line.starts_with(USER_KEY) || line.starts_with(USER_KEY_ALT) {
+                e.username = Some(line[USER_KEY.len()..].to_string());
+            }
+            if line.starts_with(PATH_KEY) {
+                e.path = Some(line[PATH_KEY.len()..].to_string());
+            }
+            if line.starts_with(URL_KEY) {
+                e.url = Some(line[URL_KEY.len()..].to_string());
+            }
+            if line.starts_with(UUID_KEY) {
+                e.uuid = match Uuid::parse_str(&line[UUID_KEY.len()..]) {
+                    Ok(id) => id,
+                    Err(_) => Uuid::nil()
+                }
+            }
+        }
+
+        Ok(e)
+
     }
 
     pub fn create(&self) -> Result<(), Error> {
@@ -265,7 +321,7 @@ impl Entry {
                 let raw_clone = self.raw.clone();
                 self.raw = String::new();
                 for line in raw_clone.lines() {
-                    if line.starts_with(USER_KEY) {
+                    if line.to_lowercase().starts_with(USER_KEY) || line.to_lowercase().starts_with(USER_KEY_ALT) {
                         self.raw.push_str(USER_KEY);
                         self.raw.push_str(new_user.as_ref());
                     } else {
@@ -280,7 +336,7 @@ impl Entry {
                 let raw_clone = self.raw.clone();
                 self.raw = String::new();
                 for line in raw_clone.lines() {
-                    if !line.starts_with(USER_KEY) {
+                    if !(line.to_lowercase().starts_with(USER_KEY) || line.to_lowercase().starts_with(USER_KEY_ALT)) {
                         self.raw.push_str(line);
                     }
                     self.raw.push('\n');
@@ -323,7 +379,7 @@ impl Entry {
                 let raw_clone = self.raw.clone();
                 self.raw = String::new();
                 for line in raw_clone.lines() {
-                    if line.starts_with(URL_KEY) {
+                    if line.to_lowercase().starts_with(URL_KEY) {
                         self.raw.push_str(URL_KEY);
                         self.raw.push_str(new_url.as_ref());
                     } else {
@@ -338,7 +394,7 @@ impl Entry {
                 let raw_clone = self.raw.clone();
                 self.raw = String::new();
                 for line in raw_clone.lines() {
-                    if !line.starts_with(URL_KEY) {
+                    if !line.to_lowercase().starts_with(URL_KEY) {
                         self.raw.push_str(line);
                     }
                     self.raw.push('\n');
@@ -454,7 +510,7 @@ impl Entry {
         self.raw = String::new();
         let mut path_entered = false;
         for line in old_raw.lines() {
-            if line.starts_with(PATH_KEY) {
+            if line.to_lowercase().starts_with(PATH_KEY) {
                 self.raw.push_str(PATH_KEY);
                 self.raw.push_str(new_path.as_str());
                 path_entered = true;
@@ -515,11 +571,12 @@ impl Entry {
         let mut lines_iter = self.raw.lines().into_iter();
         lines_iter.next();
         for line in lines_iter {
-            if !(line.starts_with(USER_KEY) ||
-                    line.starts_with(PATH_KEY) ||
-                    line.starts_with(UUID_KEY) ||
-                    line.starts_with(URL_KEY) ||
-                    line.len() == 0) {
+            let line_lower = line.to_lowercase();
+            if !(line_lower.starts_with(USER_KEY) || line_lower.starts_with(USER_KEY_ALT) ||
+                 line_lower.starts_with(PATH_KEY) ||
+                 line_lower.starts_with(UUID_KEY) ||
+                 line_lower.starts_with(URL_KEY) ||
+                 line.len() == 0) {
                 if !raw_str_printed {
                     raw_str_printed = true;
                     s.push_str(PANGO_RAW_NAME);
