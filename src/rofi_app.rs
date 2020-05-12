@@ -1,8 +1,5 @@
 use std::io::{Error, ErrorKind};
 
-use notify_rust::{Notification,
-                  NotificationUrgency,
-                  Timeout};
 use rustofi::window::{Window, Dimensions};
 
 use crate::commands::{insert, get, edit};
@@ -65,13 +62,7 @@ fn action_wrapper(action: Action) {
         Action::Edit => action_edit(),
         _ => Err(Error::new(ErrorKind::Other, "Not Implemented"))
     } {
-        Ok(()) => {
-            Notification::new()
-                .summary("Action Successful!")
-                .urgency(NotificationUrgency::Low)
-                .timeout(Timeout::Milliseconds(1000))
-                .show().unwrap();
-        }
+        Ok(()) => {}
         Err(e) => notify_error(e)
     }
 }

@@ -1,3 +1,6 @@
+use std::process::exit;
+use std::io::ErrorKind;
+
 use clap::{Arg, App, SubCommand};
 
 mod pass;
@@ -180,7 +183,7 @@ fn main() {
         )
         .get_matches();
 
-    match matches.subcommand() {
+    let result = match matches.subcommand() {
         ("menu", _)            => rofi_app::rofi_app(),
         ("init", Some(args))   => commands::init(args.is_present("force")),
         ("interactive", _)     => commands::interactive(),
@@ -218,6 +221,19 @@ fn main() {
         ("ls", _)              => commands::list(),
         ("fix-index", _)       => commands::fix_index(),
         _                      => rofi_app::rofi_app()
-    }.expect("Something went wrong");
+    };
+
+    match result {
+        Ok(()) => {},
+        Err(e) => {
+            match e.kind() {
+                ErrorKind::Interrupted => {},
+                _ => {
+                    eprintln!("Error: {:#?}", e);
+                    exit(1);
+                }
+            }
+        }
+    }
 
 }

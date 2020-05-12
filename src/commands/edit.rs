@@ -61,7 +61,7 @@ fn edit_interactive(path: Option<&str>, id: Option<&str>,) -> Result<(), Error> 
                             .show().unwrap();
                     },
                     EditMenuAction::EditUsername => {
-                        match question_rofi("Username", entry.username.as_ref()) {
+                        match question_rofi("Username") {
                             Ok(new_user) => {
                                 entry.change_username(new_user)?;
                                 notify_action("Changed username");
@@ -83,13 +83,13 @@ fn edit_interactive(path: Option<&str>, id: Option<&str>,) -> Result<(), Error> 
                         }
                     },
                     EditMenuAction::EditUrl      => {
-                        match question_rofi("URL", entry.url.as_ref()) {
+                        match question_rofi("URL") {
                             Ok(new_url) => entry.change_url(new_url)?,
                             Err(e) => notify_error(e)
                         }
                     },
                     EditMenuAction::EditOther(s) => {
-                        match question_rofi("Edit Raw line", Some(&s)) {
+                        match question_rofi("Edit Raw line") {
                             Ok(new_line) => {
                                 match entry.change_raw_line(Some(s), new_line) {
                                     Ok(()) => notify_action("Changed raw line"),
@@ -100,7 +100,7 @@ fn edit_interactive(path: Option<&str>, id: Option<&str>,) -> Result<(), Error> 
                         }
                     },
                     EditMenuAction::AddOther => {
-                        match question_rofi("Create Raw line", None) {
+                        match question_rofi("Create Raw line") {
                             Ok(new_line) => {
                                 match entry.change_raw_line(None, new_line) {
                                     Ok(()) => notify_action("Added raw line"),

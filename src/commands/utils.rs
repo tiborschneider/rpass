@@ -236,7 +236,7 @@ fn confirm_rofi<S: AsRef<str>>(q: S) -> bool {
 
 pub fn question<S: AsRef<str>>(q: S, use_rofi: bool) -> Result<Option<String>, Error> {
     match use_rofi {
-        true => question_rofi(q, None),
+        true => question_rofi(q),
         false => question_stdio(q)
     }
 }
@@ -252,30 +252,17 @@ fn question_stdio<S: AsRef<str>>(q: S) -> Result<Option<String>, Error> {
     }
 }
 
-pub fn question_rofi<S: AsRef<str>>(q: S, hint: Option<&String>) -> Result<Option<String>, Error> {
-    let result = match hint {
-        Some(h) => {
-            EntryBox::create_window()
+pub fn question_rofi<S: AsRef<str>>(q: S) -> Result<Option<String>, Error> {
+    let result = EntryBox::create_window()
                 .prompt(format!("{}", q.as_ref()))
-                .message("previous value:")
                 .lines(2)
                 .dimensions(Dimensions{width:1100, height:100, lines:2, columns:1})
                 .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
-                .show(vec![format!("{}", h), EMPTY_TEXT.to_string()])
-        },
-        None => {
-            EntryBox::create_window()
-                .prompt(format!("{}", q.as_ref()))
-                .lines(1)
-                .dimensions(Dimensions{width:1100, height:100, lines:1, columns:1})
-                .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
-                .show(vec![EMPTY_TEXT.to_string()])
-        }
-    };
+                .show(vec![EMPTY_TEXT.to_string(), CANCEL_TEXT.to_string()]);
 
     match result {
         Ok(input) => {
-            if input == "" {
+            if input == "" || input == CANCEL_TEXT {
                 Err(Error::new(ErrorKind::Interrupted, "User interrupted question"))
             } else if input == EMPTY_TEXT {
                 Ok(None)

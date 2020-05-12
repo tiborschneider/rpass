@@ -73,7 +73,7 @@ fn action_copy_entry(entry: &Entry, action: CopyAction) -> Result<(), Error> {
     let mut copy_both: bool = false;
     let entry_to_copy: String = match action {
         CopyAction::Username => entry.username.clone().unwrap(),
-        CopyAction::Password => entry.password.clone().unwrap(),
+        CopyAction::Password => entry.password.clone(),
         CopyAction::Both => {
             copy_both = true;
             entry.username.clone().unwrap()

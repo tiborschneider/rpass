@@ -49,7 +49,7 @@ fn get_rofi_menu(entry: &mut Entry) -> Result<(), Error> {
                     GetMenuAction::CopyPath     => copy_to_clipboard(entry.path.clone().unwrap(), "path", Some(5000))?,
                     GetMenuAction::CopyUuid     => copy_to_clipboard(format!("{}", entry.uuid), "UUID", Some(5000))?,
                     GetMenuAction::CopyUsername => copy_to_clipboard(entry.username.clone().unwrap(), "Username", Some(5000))?,
-                    GetMenuAction::CopyPassword => copy_to_clipboard(entry.password.clone().unwrap(), "Password", Some(5000))?,
+                    GetMenuAction::CopyPassword => copy_to_clipboard(entry.password.clone(), "Password", Some(5000))?,
                     GetMenuAction::CopyUrl      => copy_to_clipboard(entry.url.clone().unwrap(), "URL", Some(5000))?,
                     GetMenuAction::CopyOther(s) => copy_to_clipboard(s, "Custom entry", Some(5000))?,
                     GetMenuAction::ShowPassword => entry.hidden = false,

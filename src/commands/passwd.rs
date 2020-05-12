@@ -30,7 +30,7 @@ pub fn passwd(path: Option<&str>,
         None => {
             match use_rofi {
                 true => {
-                    match question_rofi("password", None)? {
+                    match question_rofi("password")? {
                         Some(pw) => pw,
                         None     => return Err(Error::new(ErrorKind::InvalidInput, "Password cannot be empty")),
                     }
