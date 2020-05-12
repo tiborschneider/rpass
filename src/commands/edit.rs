@@ -5,12 +5,8 @@ use notify_rust::{Notification, NotificationUrgency, Timeout};
 
 use crate::commands::utils::{choose_entry, question_rofi, notify_error, confirm, notify_action};
 use crate::commands::{mv, delete, passwd};
-use crate::pass::entry;
 use crate::pass::entry::Entry;
-
-const NEW_LINE_NAME: &str = "<span size='small' fgcolor='#7EAFE9'>New raw line</span>";
-const DELETE_OPTION_NAME: &str = "<span size='small' fgcolor='#7EAFE9'>Delete</span>";
-const MAIN_MENU_NAME: &str = "<span size='smaller' alpha='50%'>[Main menu]</span>";
+use crate::def;
 
 pub fn edit(path: Option<&str>,
             id: Option<&str>,
@@ -32,10 +28,10 @@ fn edit_interactive(path: Option<&str>, id: Option<&str>,) -> Result<(), Error> 
 
     loop {
         let mut lines: Vec<String> = entry.get_string().lines().map(|x| x.to_string()).collect();
-        lines.push(NEW_LINE_NAME.to_string());
+        lines.push(def::PANGO_NEW_LINE_NAME.to_string());
         lines.push(String::new());
-        lines.push(DELETE_OPTION_NAME.to_string());
-        lines.push(MAIN_MENU_NAME.to_string());
+        lines.push(def::PANGO_DELETE_NAME.to_string());
+        lines.push(def::PANGO_MAIN_MENU_NAME.to_string());
         match Window::new("Edit Entry")
             .dimensions(Dimensions{width: 1000, height: 1000, lines: 3, columns: 1})
             .lines(lines.len() as i32)
@@ -141,15 +137,15 @@ enum EditMenuAction {
 }
 
 fn get_menu_action(s: String) -> EditMenuAction {
-    if s.starts_with(entry::PANGO_PATH_NAME) { EditMenuAction::EditPath }
-    else if s.starts_with(entry::PANGO_UUID_NAME) { EditMenuAction::EditUuid }
-    else if s.starts_with(entry::PANGO_USERNAME_NAME) { EditMenuAction::EditUsername }
-    else if s.starts_with(entry::PANGO_PASSWORD_NAME) { EditMenuAction::EditPassword }
-    else if s.starts_with(entry::PANGO_URL_NAME) { EditMenuAction::EditUrl }
-    else if s == NEW_LINE_NAME { EditMenuAction::AddOther }
-    else if s == DELETE_OPTION_NAME { EditMenuAction::Delete }
-    else if s == entry::PANGO_RAW_NAME { EditMenuAction::DoNothing }
-    else if s.len() > 0 && s != MAIN_MENU_NAME { EditMenuAction::EditOther(s.clone()) }
+    if s.starts_with(def::PANGO_PATH_NAME) { EditMenuAction::EditPath }
+    else if s.starts_with(def::PANGO_UUID_NAME) { EditMenuAction::EditUuid }
+    else if s.starts_with(def::PANGO_USERNAME_NAME) { EditMenuAction::EditUsername }
+    else if s.starts_with(def::PANGO_PASSWORD_NAME) { EditMenuAction::EditPassword }
+    else if s.starts_with(def::PANGO_URL_NAME) { EditMenuAction::EditUrl }
+    else if s == def::PANGO_NEW_LINE_NAME { EditMenuAction::AddOther }
+    else if s == def::PANGO_DELETE_NAME { EditMenuAction::Delete }
+    else if s == def::PANGO_RAW_NAME { EditMenuAction::DoNothing }
+    else if s.len() > 0 && s != def::PANGO_MAIN_MENU_NAME { EditMenuAction::EditOther(s.clone()) }
     else { EditMenuAction::Exit }
 }
 

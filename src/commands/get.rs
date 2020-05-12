@@ -4,13 +4,8 @@ use rustofi::window::{Window, Dimensions};
 
 use crate::commands::utils::{choose_entry, copy_to_clipboard};
 use crate::commands::edit;
-use crate::pass::entry;
 use crate::pass::entry::Entry;
-
-const SHOW_PASSWORD_NAME: &str = "<span size='small' fgcolor='#7EAFE9'>Show Password</span>";
-const HIDE_PASSWORD_NAME: &str = "<span size='small' fgcolor='#7EAFE9'>Hide Password</span>";
-const EDIT_ENTRY_NAME: &str = "<span size='small' fgcolor='#7EAFE9'>Edit entry</span>";
-const MAIN_MENU_NAME: &str = "<span size='small' fgcolor='#7EAFE9'>Main menu</span>";
+use crate::def;
 
 pub fn get(path: Option<&str>,
            id: Option<&str>,
@@ -32,12 +27,12 @@ fn get_rofi_menu(entry: &mut Entry) -> Result<(), Error> {
         let mut lines: Vec<String> = entry.get_string().lines().map(|x| x.to_string()).collect();
         lines.push(String::new());
         if entry.hidden {
-            lines.push(SHOW_PASSWORD_NAME.to_string());
+            lines.push(def::PANGO_SHOW_PASSWORD_NAME.to_string());
         } else {
-            lines.push(HIDE_PASSWORD_NAME.to_string());
+            lines.push(def::PANGO_HIDE_PASSWORD_NAME.to_string());
         }
-        lines.push(EDIT_ENTRY_NAME.to_string());
-        lines.push(MAIN_MENU_NAME.to_string());
+        lines.push(def::PANGO_EDIT_ENTRY_NAME.to_string());
+        lines.push(def::PANGO_MAIN_MENU_NAME.to_string());
         match Window::new("Entry")
             .dimensions(Dimensions{width: 1000, height: 1000, lines: 3, columns: 1})
             .lines(lines.len() as i32)
@@ -79,14 +74,14 @@ enum GetMenuAction {
 }
 
 fn get_menu_action(s: String) -> GetMenuAction {
-    if s == SHOW_PASSWORD_NAME { GetMenuAction::ShowPassword }
-    else if s == HIDE_PASSWORD_NAME { GetMenuAction::HidePassword }
-    else if s == EDIT_ENTRY_NAME { GetMenuAction::EditEntry }
-    else if s.starts_with(entry::PANGO_PATH_NAME) { GetMenuAction::CopyPath }
-    else if s.starts_with(entry::PANGO_UUID_NAME) { GetMenuAction::CopyUuid }
-    else if s.starts_with(entry::PANGO_USERNAME_NAME) { GetMenuAction::CopyUsername }
-    else if s.starts_with(entry::PANGO_PASSWORD_NAME) { GetMenuAction::CopyPassword }
-    else if s.starts_with(entry::PANGO_URL_NAME) { GetMenuAction::CopyUrl }
-    else if s.len() > 0 && s != MAIN_MENU_NAME {GetMenuAction::CopyOther(s.clone()) }
+    if s == def::PANGO_SHOW_PASSWORD_NAME { GetMenuAction::ShowPassword }
+    else if s == def::PANGO_HIDE_PASSWORD_NAME { GetMenuAction::HidePassword }
+    else if s == def::PANGO_EDIT_ENTRY_NAME { GetMenuAction::EditEntry }
+    else if s.starts_with(def::PANGO_PATH_NAME) { GetMenuAction::CopyPath }
+    else if s.starts_with(def::PANGO_UUID_NAME) { GetMenuAction::CopyUuid }
+    else if s.starts_with(def::PANGO_USERNAME_NAME) { GetMenuAction::CopyUsername }
+    else if s.starts_with(def::PANGO_PASSWORD_NAME) { GetMenuAction::CopyPassword }
+    else if s.starts_with(def::PANGO_URL_NAME) { GetMenuAction::CopyUrl }
+    else if s.len() > 0 && s != def::PANGO_MAIN_MENU_NAME {GetMenuAction::CopyOther(s.clone()) }
     else { GetMenuAction::Exit }
 }

@@ -8,8 +8,7 @@ use dirs::home_dir;
 use crate::pass::index;
 use crate::pass::entry::Entry;
 use crate::commands::utils::{confirm, gen_path_interactive, two_options};
-
-const UUID_PATH: &str = ".password-store/uuids/";
+use crate::def;
 
 pub fn fix_index() -> Result<(), Error> {
 
@@ -17,7 +16,8 @@ pub fn fix_index() -> Result<(), Error> {
     let path_lookup = index::to_hashmap(&index_file);
 
     let mut uuid_folder = home_dir().unwrap();
-    uuid_folder.push(UUID_PATH);
+    uuid_folder.push(def::ROOT_FOLDER);
+    uuid_folder.push(def::UUID_FOLDER);
 
     if !uuid_folder.is_dir() {
         return Err(Error::new(ErrorKind::NotFound, format!("UUID folder was not found: {:?}", uuid_folder)));
@@ -35,12 +35,12 @@ pub fn fix_index() -> Result<(), Error> {
 
         let name_parts: Vec<&str> = key_name.split(".").collect();
 
-        if name_parts.len() != 2 || name_parts[1] != "gpg" {
+        if name_parts.len() != 2 || name_parts[1] != def::ENTRY_EXTENSION {
             println!("[Warning] unrecognized file: {}", key_name);
             continue;
         }
 
-        if key_name == "index.gpg" {
+        if key_name == def::INDEX_FILE {
             // skip index cile
             continue;
         }

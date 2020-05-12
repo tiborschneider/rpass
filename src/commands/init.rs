@@ -9,19 +9,14 @@ use uuid::Uuid;
 use text_io::read;
 
 use crate::pass::index;
-use crate::pass::entry;
 use crate::pass::entry::Entry;
 use crate::commands::utils;
-
-const ROOT_FOLDER: &str = ".password-store";
-const UUID_FOLDER: &str = "uuids";
-const GIT_FOLDER: &str = ".git";
-
+use crate::def;
 
 pub fn init(force: bool) -> Result<(), Error> {
 
     let mut root_folder = home_dir().unwrap();
-    root_folder.push(ROOT_FOLDER);
+    root_folder.push(def::ROOT_FOLDER);
     let root_folder_len: usize = root_folder.as_path().to_str().unwrap().len() + 1;
 
     // check if the password store folder exists
@@ -73,7 +68,7 @@ pub fn init(force: bool) -> Result<(), Error> {
         } else {
             // add path key
             e.path = Some(key_name.clone());
-            e.raw.push_str(entry::PATH_KEY);
+            e.raw.push_str(def::PATH_KEY);
             e.raw.push_str(key_name.as_str());
             e.raw.push('\n');
         }
@@ -82,7 +77,7 @@ pub fn init(force: bool) -> Result<(), Error> {
         if e.uuid == Uuid::nil() {
             // No uuid is present! generate one and write
             e.uuid = Uuid::new_v4();
-            e.raw.push_str(entry::UUID_KEY);
+            e.raw.push_str(def::UUID_KEY);
             e.raw.push_str(format!("{}", e.uuid).as_str());
             e.raw.push('\n');
         }
@@ -110,8 +105,8 @@ fn walk_recursively(dir: &Path, force: bool) -> Result<Vec<String>, Error> {
                 // handle directory
 
                 // skip git folder
-                if path.ends_with(GIT_FOLDER) { continue }
-                if path.ends_with(UUID_FOLDER) { continue }
+                if path.ends_with(def::GIT_FOLDER) { continue }
+                if path.ends_with(def::UUID_FOLDER) { continue }
 
                 // ask to change to add all, to ask again or to skip the directory
                 let force_child = match force {

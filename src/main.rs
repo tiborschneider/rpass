@@ -6,6 +6,7 @@ use clap::{Arg, App, SubCommand};
 mod pass;
 mod commands;
 mod rofi_app;
+mod def;
 
 const DEFAULT_PW_SIZE: usize = 20;
 

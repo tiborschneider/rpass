@@ -7,15 +7,13 @@ use petgraph::graph::{Graph, NodeIndex};
 
 use uuid::Uuid;
 
-use crate::pass::entry::ROOT_FOLDER;
-
-const INDEX_KEY: &str = "uuids/index";
+use crate::def;
 
 #[allow(dead_code)]
 pub fn get_index() -> Result<Vec<(Uuid, String)>, Error> {
     // execute pass command
     let output = Command::new("pass")
-        .arg(INDEX_KEY)
+        .arg(format!("{}/{}", def::UUID_FOLDER, def::INDEX_ENTRY))
         .output()?;
 
     if !output.status.success() {
@@ -115,7 +113,7 @@ pub fn write(index_list: &Vec<(Uuid, String)>) -> Result<(), Error> {
     let mut p = Command::new("pass")
         .arg("insert")
         .arg("--multiline")
-        .arg(INDEX_KEY)
+        .arg(format!("{}/{}", def::UUID_FOLDER, def::INDEX_ENTRY))
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .spawn()?;
@@ -150,7 +148,7 @@ pub fn remove(id: Uuid) -> Result<(), Error> {
     Command::new("pass")
         .arg("rm")
         .arg("--force")
-        .arg(format!("{}/{}", ROOT_FOLDER, id))
+        .arg(format!("{}/{}", def::UUID_FOLDER, id))
         .output()?;
 
     write(&index_list)

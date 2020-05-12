@@ -6,21 +6,7 @@ use std::iter;
 use uuid::Uuid;
 
 use crate::pass::index;
-
-pub const ROOT_FOLDER: &str = "uuids";
-const USER_KEY: &str = "user: ";
-const USER_KEY_ALT: &str = "username: ";
-pub const PATH_KEY: &str = "path: ";
-const URL_KEY: &str = "url: ";
-pub const UUID_KEY: &str = "uuid: ";
-
-pub const PANGO_PATH_NAME: &str     = "<span size='smaller' alpha='50%'><tt>    path  </tt></span>";
-pub const PANGO_UUID_NAME: &str     = "<span size='smaller' alpha='50%'><tt>    uuid  </tt></span>";
-pub const PANGO_USERNAME_NAME: &str = "<span size='smaller' alpha='50%'><tt>username  </tt></span>";
-pub const PANGO_PASSWORD_NAME: &str = "<span size='smaller' alpha='50%'><tt>password  </tt></span>";
-pub const PANGO_URL_NAME: &str      = "<span size='smaller' alpha='50%'><tt>     url  </tt></span>";
-pub const PANGO_RAW_NAME: &str      = "<span size='smaller' alpha='50%'><tt>raw data</tt></span>";
-const PANGO_EMPTY_NAME: &str        = "<span size='smaller' alpha='50%'>empty</span>";
+use crate::def;
 
 #[derive(Clone)]
 pub struct Entry {
@@ -107,7 +93,7 @@ impl Entry {
     }
 
     pub fn get(id: Uuid) -> Result<Entry, Error> {
-        let mut e = Entry::from_path(format!("{}/{}", ROOT_FOLDER, id))?;
+        let mut e = Entry::from_path(format!("{}/{}", def::UUID_FOLDER, id))?;
         if e.uuid != id {
             println!("[Warning] Fixing UUID stored in entry {}", id);
             e.uuid = id;
@@ -146,14 +132,16 @@ impl Entry {
         // search for username and path
         for line in lines {
             let line_lower = line.to_lowercase();
-            if line_lower.starts_with(USER_KEY) || line_lower.starts_with(USER_KEY_ALT) {
-                e.username = Some(line[USER_KEY.len()..].to_string());
-            } else if line_lower.starts_with(PATH_KEY) {
-                e.path = Some(line[PATH_KEY.len()..].to_string());
-            } else if line_lower.starts_with(URL_KEY) {
-                e.url = Some(line[URL_KEY.len()..].to_string());
-            } else if line_lower.starts_with(UUID_KEY) {
-                e.uuid = match Uuid::parse_str(&line[UUID_KEY.len()..]) {
+            if line_lower.starts_with(def::USER_KEY) {
+                e.username = Some(line[def::USER_KEY.len()..].to_string());
+            } else if line_lower.starts_with(def::USER_KEY_ALT) {
+                e.username = Some(line[def::USER_KEY_ALT.len()..].to_string());
+            } else if line_lower.starts_with(def::PATH_KEY) {
+                e.path = Some(line[def::PATH_KEY.len()..].to_string());
+            } else if line_lower.starts_with(def::URL_KEY) {
+                e.url = Some(line[def::URL_KEY.len()..].to_string());
+            } else if line_lower.starts_with(def::UUID_KEY) {
+                e.uuid = match Uuid::parse_str(&line[def::UUID_KEY.len()..]) {
                     Ok(id) => id,
                     Err(_) => Uuid::nil()
                 }
@@ -190,26 +178,26 @@ impl Entry {
         raw_content.push('\n');
         // push Username
         if let Some(ref username) = self.username {
-            raw_content.push_str(USER_KEY);
+            raw_content.push_str(def::USER_KEY);
             raw_content.push_str(username);
             raw_content.push('\n');
         }
         // push url
         if let Some(ref url) = self.url {
-            raw_content.push_str(URL_KEY);
+            raw_content.push_str(def::URL_KEY);
             raw_content.push_str(url);
             raw_content.push('\n');
         }
         // push path
         if let Some(ref path) = self.path {
-            raw_content.push_str(PATH_KEY);
+            raw_content.push_str(def::PATH_KEY);
             raw_content.push_str(path);
             raw_content.push('\n');
         }
         // push all the content of self.raw
         raw_content.push_str(self.raw.as_str());
         //push the uuid last
-        raw_content.push_str(UUID_KEY);
+        raw_content.push_str(def::UUID_KEY);
         raw_content.push_str(format!("{}", self.uuid).as_ref());
         raw_content.push('\n');
 
@@ -217,7 +205,7 @@ impl Entry {
         let mut p = Command::new("pass")
             .arg("insert")
             .arg("--multiline")
-            .arg(format!("{}/{}", ROOT_FOLDER, self.uuid))
+            .arg(format!("{}/{}", def::UUID_FOLDER, self.uuid))
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .spawn()?;
@@ -235,7 +223,7 @@ impl Entry {
 
         Command::new("pass")
             .arg("edit")
-            .arg(format!("{}/{}", ROOT_FOLDER, self.uuid))
+            .arg(format!("{}/{}", def::UUID_FOLDER, self.uuid))
             .spawn()?.wait()?;
 
         // update the own settings and check if the path is unchanged. If not, update the path
@@ -340,18 +328,18 @@ impl Entry {
 
         let mut s = String::new();
 
-        s.push_str(PANGO_PATH_NAME);
+        s.push_str(def::PANGO_PATH_NAME);
         s.push_str(escape_pango(self.path.clone().unwrap()).as_str());
         s.push('\n');
 
-        s.push_str(PANGO_UUID_NAME);
+        s.push_str(def::PANGO_UUID_NAME);
         s.push_str(format!("{}", self.uuid).as_ref());
         s.push('\n');
         
-        s.push_str(PANGO_USERNAME_NAME);
+        s.push_str(def::PANGO_USERNAME_NAME);
         match self.username.clone() {
             Some(username) => s.push_str(escape_pango(username).as_ref()),
-            None => s.push_str(PANGO_EMPTY_NAME)
+            None => s.push_str(def::PANGO_EMPTY_NAME)
         };
         s.push('\n');
 
@@ -359,14 +347,14 @@ impl Entry {
             true => iter::repeat("*").take(self.password.len()).collect(),
             false => escape_pango(self.password.clone())
         };
-        s.push_str(PANGO_PASSWORD_NAME);
+        s.push_str(def::PANGO_PASSWORD_NAME);
         s.push_str(hidden_pw.as_ref());
         s.push('\n');
 
-        s.push_str(PANGO_URL_NAME);
+        s.push_str(def::PANGO_URL_NAME);
         match self.url.clone() {
             Some(url) => s.push_str(escape_pango(url).as_ref()),
-            None => s.push_str(PANGO_EMPTY_NAME)
+            None => s.push_str(def::PANGO_EMPTY_NAME)
         };
         s.push('\n');
 
@@ -374,7 +362,7 @@ impl Entry {
         for line in self.raw.lines() {
             if !raw_str_printed {
                 raw_str_printed = true;
-                s.push_str(PANGO_RAW_NAME);
+                s.push_str(def::PANGO_RAW_NAME);
                 s.push('\n');
             }
             s.push_str(escape_pango(line.to_string()).as_ref());
