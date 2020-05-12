@@ -28,3 +28,9 @@ pub const PANGO_NEW_LINE_NAME: &str      = "<span size='small' fgcolor='#7EAFE9'
 pub const PANGO_DELETE_NAME: &str        = "<span size='small' fgcolor='#7EAFE9'>Delete</span>";
 pub const PANGO_CANCEL_NAME: &str        = "<span size='small' fgcolor='#7EAFE9'>cancel</span>";
 pub const PANGO_NEW_PATH_NAME: &str      = "<span size='small' fgcolor='#7EAFE9'>New path</span>";
+pub const PANGO_COPY_USERNAME_NAME: &str = "<span size='small' fgcolor='#7EAFE9'>Username</span>";
+pub const PANGO_COPY_PASSWORD_NAME: &str = "<span size='small' fgcolor='#7EAFE9'>Password</span>";
+pub const PANGO_COPY_BOTH_NAME: &str     = "<span size='small' fgcolor='#7EAFE9'>Both</span>";
+pub const PANGO_EXIT_NAME: &str          = "<span size='small' alpha='50%'>exit</span>";
+
+pub const LAST_COMMAND_FILE: &str = ".cache/rpass_last";

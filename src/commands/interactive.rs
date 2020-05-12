@@ -1,21 +1,16 @@
 use std::fmt;
 use std::io::prelude::*;
 use std::io::{Error, ErrorKind, Write, BufReader};
-use std::path::Path;
+use std::path::PathBuf;
 use std::fs::{File, remove_file, OpenOptions};
 
 use uuid::Uuid;
-
 use rustofi::window::{Dimensions, Window};
+use dirs::home_dir;
 
 use crate::pass::entry::Entry;
 use crate::commands::utils;
-
-const LAST_COMMAND_FILE: &str = "/home/tibor/.cache/rpass_last";
-const USERNAME: &str = "<span fgcolor='#7EAFE9'>Username</span>";
-const PASSWORD: &str = "<span fgcolor='#7EAFE9'>Password</span>";
-const BOTH: &str = "<span fgcolor='#7EAFE9'>Both</span>";
-const EXIT: &str = "<span size='small' alpha='50%'>exit</span>";
+use crate::def;
 
 pub fn interactive() -> Result<(), Error> {
     // choose the entry
@@ -27,10 +22,10 @@ pub fn interactive() -> Result<(), Error> {
         None => {
             let entry = utils::choose_entry(None, None)?;
 
-            let lines: Vec<String> = vec![USERNAME.to_string(),
-                                        PASSWORD.to_string(),
-                                        BOTH.to_string(),
-                                        EXIT.to_string()];
+            let lines: Vec<String> = vec![def::PANGO_COPY_USERNAME_NAME.to_string(),
+                                          def::PANGO_COPY_PASSWORD_NAME.to_string(),
+                                          def::PANGO_COPY_BOTH_NAME.to_string(),
+                                          def::PANGO_EXIT_NAME.to_string()];
             match Window::new("What to copy?")
                 .dimensions(Dimensions{width: 400, height: 1000, lines: 4, columns: 1})
                 .lines(lines.len() as i32)
@@ -63,9 +58,9 @@ impl fmt::Display for CopyAction {
 }
 
 fn get_copy_action(s: String) -> CopyAction {
-    if s == USERNAME { CopyAction::Username }
-    else if s == PASSWORD { CopyAction::Password }
-    else if s == BOTH { CopyAction::Both }
+    if s == def::PANGO_COPY_USERNAME_NAME { CopyAction::Username }
+    else if s == def::PANGO_COPY_PASSWORD_NAME { CopyAction::Password }
+    else if s == def::PANGO_COPY_BOTH_NAME { CopyAction::Both }
     else { CopyAction::Exit }
 }
 
@@ -92,10 +87,11 @@ fn action_copy_entry(entry: &Entry, action: CopyAction) -> Result<(), Error> {
 }
 
 fn previous_entry() -> Result<Option<Uuid>, Error> {
-    match Path::new(LAST_COMMAND_FILE).exists() {
+    let last_command_file = get_last_command_file();
+    match last_command_file.exists() {
         false => Ok(None),
         true => {
-            let file = File::open(LAST_COMMAND_FILE)?;
+            let file = File::open(last_command_file.as_path())?;
             let mut buf_reader = BufReader::new(file);
             let mut content = String::new();
             buf_reader.read_line(&mut content)?;
@@ -104,7 +100,7 @@ fn previous_entry() -> Result<Option<Uuid>, Error> {
                 Ok(id) => Ok(Some(id)),
                 Err(_) => Err(Error::new(ErrorKind::InvalidData, "Cannot parse UUID"))
             };
-            remove_file(LAST_COMMAND_FILE)?;
+            remove_file(last_command_file.as_path())?;
             result
         }
     }
@@ -114,7 +110,13 @@ fn write_next_entry(id: Uuid) -> Result<(), Error> {
     OpenOptions::new()
         .create(true)
         .write(true)
-        .open(LAST_COMMAND_FILE)?
+        .open(get_last_command_file())?
         .write_all(format!("{}\n", id).as_bytes())?;
     Ok(())
+}
+
+fn get_last_command_file() -> PathBuf {
+    let mut last_command_file = home_dir().unwrap();
+    last_command_file.push(def::LAST_COMMAND_FILE);
+    last_command_file
 }
