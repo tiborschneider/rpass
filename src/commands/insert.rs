@@ -90,7 +90,7 @@ pub fn insert(path: Option<&str>,
     e.create()?;
 
     if use_rofi {
-        get(None, Some(format!("{}", e.uuid).as_str()), use_rofi)
+        get(None, Some(format!("{}", e.uuid).as_str()), use_rofi, false)
     } else {
         println!("Created {}", e);
         Ok(())

@@ -91,7 +91,7 @@ fn action_new() -> Result<(), Error> {
 }
 
 fn action_get() -> Result<(), Error> {
-    get(None, None, true)
+    get(None, None, true, false)
 }
 
 fn action_edit() -> Result<(), Error> {

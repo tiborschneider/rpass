@@ -1,6 +1,6 @@
 [package]
 name = "rpass"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Tibor Schneider <tiborschneider@bluewin.ch>"]
 edition = "2018"
 

@@ -25,11 +25,15 @@ use crate::def;
 
 pub fn get(path: Option<&str>,
            id: Option<&str>,
-           use_rofi: bool) -> Result<(), Error> {
+           use_rofi: bool,
+           only_password: bool) -> Result<(), Error> {
 
     let mut entry = choose_entry(path, id, use_rofi)?;
     if use_rofi {
         get_rofi_menu(&mut entry)
+    } else if only_password {
+        println!("{}", entry.password);
+        Ok(())
     } else {
         entry.hidden = false;
         println!("{:?}", entry);

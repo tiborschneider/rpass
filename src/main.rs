@@ -29,7 +29,7 @@ const DEFAULT_PW_SIZE: usize = 20;
 fn main() {
 
     let matches = App::new("rpass")
-        .version("0.2.0")
+        .version("0.3.1")
         .author("Tibor Schneider <tiborschneider@bluewin.ch>")
         .about("Manage pass without leaking information")
         .subcommand(
@@ -53,7 +53,7 @@ fn main() {
             SubCommand::with_name("get")
                 .about("Print all entry information")
                 .arg(Arg::with_name("path")
-                     .short("p")
+                     .short("d")
                      .long("path")
                      .value_name("PATH")
                      .help("path to the key to show content")
@@ -65,6 +65,11 @@ fn main() {
                      .help("uuid of the key to show content")
                      .takes_value(true)
                      .conflicts_with("path"))
+                .arg(Arg::with_name("password")
+                     .short("p")
+                     .long("password")
+                     .help("only print out the password")
+                     .takes_value(false))
         )
         .subcommand(
             SubCommand::with_name("edit")
@@ -227,7 +232,8 @@ fn main() {
         ("interactive", _)     => commands::interactive(),
         ("get",    Some(args)) => commands::get(args.value_of("path"),
                                                 args.value_of("uuid"),
-                                                false),
+                                                false,
+                                                args.is_present("password")),
         ("edit",   Some(args)) => commands::edit(args.value_of("path"),
                                                  args.value_of("uuid"),
                                                  false),
