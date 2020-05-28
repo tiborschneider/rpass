@@ -82,24 +82,24 @@ By running `rpass` without commands or flags, the main GUI application is starte
    Make sure the user has a home directory, and setup the authorized keys properly. At least, add the key of your user and the one of the target device (android phone). Also, make sure that the shell is set to the git shell, and that it is working properly.
 3. Login as git user:
    ```
-sh -s /bin/bash git
+   sh -s /bin/bash git
    ```
 4. Generate an empty and raw repository
    ```
-mkdir rpass.git
-cd rpass.git
-git init --bare
+   mkdir rpass.git
+   cd rpass.git
+   git init --bare
    ```
 5. logout of git user (exit)
 6. make sure to add the git user to ssh AllowedUsers
    ```
-sudo vim /etc/ssh/sshd_conf
+   sudo vim /etc/ssh/sshd_conf
    ```
    Add git user to the AllowedUsers.
 7. add the origin in the rpass folder:
    ```
-cd ~/.password-store/.sync
-git remote add origin ssh://git@localhost/~git/rpass.git
+   cd ~/.password-store/.sync
+   git remote add origin ssh://git@localhost/~git/rpass.git
    ```
 8. Somehow get the gpg key to the mobile device
 
