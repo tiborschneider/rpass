@@ -19,7 +19,6 @@ enum Action {
 }
 
 pub fn rofi_app() -> Result<(), Error> {
-
     // endless loop
     loop {
         match main_menu() {

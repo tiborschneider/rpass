@@ -82,10 +82,10 @@ impl Entry {
                path: String) -> Entry {
 
         Entry {
-            username: username,
-            password: password,
+            username,
+            password,
             path: Some(path),
-            url: url,
+            url,
             uuid: Uuid::new_v4(),
             raw: String::new(),
             hidden: true
@@ -101,7 +101,10 @@ impl Entry {
         Ok(e)
     }
 
-    pub fn from_path(path: String) -> Result<Entry, Error> {
+    pub fn from_path<S>(path: S) -> Result<Entry, Error>
+    where
+         S: AsRef<str>
+    {
 
         let mut e = Entry {
             username: None,
@@ -115,7 +118,7 @@ impl Entry {
 
         let raw = match String::from_utf8(
             Command::new("pass")
-                .arg(path.as_str())
+                .arg(path.as_ref())
                 .output()?
                 .stdout) {
             Ok(r) => r,
@@ -126,7 +129,7 @@ impl Entry {
         let mut lines = raw.lines();
         e.password = match lines.next() {
             Some(s) => s.to_string(),
-            None => return Err(Error::new(ErrorKind::InvalidData, format!("Pass entry {} is empty!", path.as_str())))
+            None => return Err(Error::new(ErrorKind::InvalidData, format!("Pass entry {} is empty!", path.as_ref())))
         };
 
         // search for username and path

@@ -1,6 +1,6 @@
 [package]
 name = "rpass"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Tibor Schneider <tiborschneider@bluewin.ch>"]
 edition = "2018"
 
@@ -18,3 +18,6 @@ notify-rust = "3"
 ansi_term = "0.12.1"
 rustofi = "0.2.2"
 dirs = "2.0.2"
+unidiff = "0.3"
+ctrlc = "3.1.4"
+interactor = "0.1.1"

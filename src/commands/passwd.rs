@@ -19,7 +19,7 @@ pub fn passwd(path: Option<&str>,
         }
     };
 
-    let mut entry = choose_entry(path, id)?;
+    let mut entry = choose_entry(path, id, use_rofi)?;
 
     if !use_rofi {
         println!("Cange password of {}", entry);

@@ -8,7 +8,7 @@ pub fn delete(path: Option<&str>,
               force: bool,
               use_rofi: bool) -> Result<(), Error> {
 
-    let entry = choose_entry(path, id)?;
+    let entry = choose_entry(path, id, use_rofi)?;
 
     if !force {
         if !use_rofi {

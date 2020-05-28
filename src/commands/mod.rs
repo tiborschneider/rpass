@@ -9,6 +9,7 @@ mod passwd;
 mod edit;
 mod fix_index;
 mod init;
+pub mod sync;
 
 pub use delete::delete;
 pub use get::get;

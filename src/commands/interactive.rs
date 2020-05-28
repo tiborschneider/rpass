@@ -20,7 +20,7 @@ pub fn interactive() -> Result<(), Error> {
             action_copy_entry(&entry, CopyAction::Password)
         },
         None => {
-            let entry = utils::choose_entry(None, None)?;
+            let entry = utils::choose_entry(None, None, true)?;
 
             let lines: Vec<String> = vec![def::PANGO_COPY_USERNAME_NAME.to_string(),
                                           def::PANGO_COPY_PASSWORD_NAME.to_string(),

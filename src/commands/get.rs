@@ -11,7 +11,7 @@ pub fn get(path: Option<&str>,
            id: Option<&str>,
            use_rofi: bool) -> Result<(), Error> {
 
-    let mut entry = choose_entry(path, id)?;
+    let mut entry = choose_entry(path, id, use_rofi)?;
     if use_rofi {
         get_rofi_menu(&mut entry)
     } else {

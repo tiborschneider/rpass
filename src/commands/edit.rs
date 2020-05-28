@@ -15,7 +15,7 @@ pub fn edit(path: Option<&str>,
     if use_rofi {
         edit_interactive(path, id)
     } else {
-        let mut entry = choose_entry(path, id)?;
+        let mut entry = choose_entry(path, id, use_rofi)?;
         entry.edit()
     }
 
@@ -23,7 +23,7 @@ pub fn edit(path: Option<&str>,
 
 fn edit_interactive(path: Option<&str>, id: Option<&str>,) -> Result<(), Error> {
 
-    let mut entry = choose_entry(path, id)?;
+    let mut entry = choose_entry(path, id, true)?;
     let entry_id = entry.uuid.clone();
 
     loop {

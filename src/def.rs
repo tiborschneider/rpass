@@ -5,6 +5,8 @@ pub const INDEX_FILE: &str = "index.gpg";
 pub const ENTRY_EXTENSION: &str = "gpg";
 // pub const ENTRY_ENDING: &str = ".gpg";
 pub const GIT_FOLDER: &str = ".git";
+pub const SYNC_FOLDER: &str = ".sync";
+pub const SYNC_COMMIT_FILE: &str = ".sync_commit";
 
 pub const USER_KEY: &str     = "user: ";
 pub const USER_KEY_ALT: &str = "username: ";

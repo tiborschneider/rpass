@@ -2,6 +2,7 @@ use std::io;
 use std::io::prelude::*;
 use std::clone::Clone;
 use std::fmt::Display;
+use std::process::Command;
 use std::io::{Error, ErrorKind};
 use std::{thread, time};
 
@@ -12,6 +13,7 @@ use uuid::Uuid;
 use text_io::read;
 use clipboard::{ClipboardProvider, ClipboardContext};
 use notify_rust::{Notification, NotificationUrgency, Timeout};
+use interactor;
 
 use crate::pass::index::{get_index, to_graph, to_hashmap_reverse};
 use crate::pass::entry::Entry;
@@ -79,7 +81,7 @@ pub fn rofi_display_action<'a, T: Display + Clone>(rofi: &mut ActionList<'a, T>,
     }
 }
 
-pub fn choose_entry(path: Option<&str>, id: Option<&str>) -> Result<Entry, Error> {
+pub fn choose_entry(path: Option<&str>, id: Option<&str>, use_rofi: bool) -> Result<Entry, Error> {
     match (path, id) {
         (Some(path), None) => {
             let index_list = get_index()?;
@@ -100,29 +102,53 @@ pub fn choose_entry(path: Option<&str>, id: Option<&str>) -> Result<Entry, Error
         },
         
         (None, None) => {
-            let index_list = get_index()?;
-            let index_list_clone = index_list.clone();
-            let uuid_lookup = to_hashmap_reverse(&index_list_clone);
-            let mut path_list: Vec<String> = index_list.into_iter().map(|x| x.1).collect();
-            path_list.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
-            let mut rofi = ItemList::new(path_list, Box::new(identity_callback));
-            rofi.window = rofi.window.dimensions(Dimensions {width: 1000, height: 800, lines: 10, columns: 1});
-            match rofi_display_item(&mut rofi, "Select an entry".to_string(), 10) {
-                RustofiResult::Selection(s) => {
-                    let entry_id = match uuid_lookup.get(s.as_str()) {
-                        Some(id) => id,
-                        None => return Err(Error::new(ErrorKind::NotFound, "Path is not present in the index file!"))
-                    };
-                    Entry::get(entry_id.clone())
-                },
-                RustofiResult::Blank        => Err(Error::new(ErrorKind::Interrupted, "User chose blank option")),
-                RustofiResult::Cancel       => Err(Error::new(ErrorKind::Interrupted, "User chose cancel option")),
-                RustofiResult::Exit         => Err(Error::new(ErrorKind::Interrupted, "User exited rofi")),
-                _                           => Err(Error::new(ErrorKind::Other, "Rofi failed"))
+
+            if use_rofi {
+                choose_entry_rofi()
+            } else {
+                choose_entry_fzf()
             }
+
         },
 
         _ => panic!("This should not happen")
+    }
+
+}
+
+fn choose_entry_fzf() -> Result<Entry, Error> {
+    let index_list = get_index()?;
+    let index_list_clone = index_list.clone();
+    let uuid_lookup = to_hashmap_reverse(&index_list_clone);
+    let mut path_list: Vec<String> = index_list.into_iter().map(|x| x.1).collect();
+    path_list.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+    let choice = interactor::pick_from_list(Some(&mut Command::new("fzf")), &path_list, "")?;
+    match uuid_lookup.get(choice.as_str()) {
+        Some(id) => Entry::get(*id),
+        None => Err(Error::new(ErrorKind::NotFound, format!("Entry {} was not found!", choice)))
+    }
+}
+
+fn choose_entry_rofi() -> Result<Entry, Error> {
+    let index_list = get_index()?;
+    let index_list_clone = index_list.clone();
+    let uuid_lookup = to_hashmap_reverse(&index_list_clone);
+    let mut path_list: Vec<String> = index_list.into_iter().map(|x| x.1).collect();
+    path_list.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+    let mut rofi = ItemList::new(path_list, Box::new(identity_callback));
+    rofi.window = rofi.window.dimensions(Dimensions {width: 1000, height: 800, lines: 10, columns: 1});
+    match rofi_display_item(&mut rofi, "Select an entry".to_string(), 10) {
+        RustofiResult::Selection(s) => {
+            let entry_id = match uuid_lookup.get(s.as_str()) {
+                Some(id) => id,
+                None => return Err(Error::new(ErrorKind::NotFound, "Path is not present in the index file!"))
+            };
+            Entry::get(entry_id.clone())
+        },
+        RustofiResult::Blank        => Err(Error::new(ErrorKind::Interrupted, "User chose blank option")),
+        RustofiResult::Cancel       => Err(Error::new(ErrorKind::Interrupted, "User chose cancel option")),
+        RustofiResult::Exit         => Err(Error::new(ErrorKind::Interrupted, "User exited rofi")),
+        _                           => Err(Error::new(ErrorKind::Other, "Rofi failed"))
     }
 }
 

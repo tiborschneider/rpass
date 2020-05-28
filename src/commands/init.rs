@@ -50,36 +50,28 @@ pub fn init(force: bool) -> Result<(), Error> {
 
     for key_filename in to_index {
 
-        let key_name = key_filename[root_folder_len..].to_string();
+        let key_name = key_filename[root_folder_len..].trim_end_matches(".gpg").to_string();
         println!("Indexing {}", key_name);
 
         // get the entry
-        let mut e: Entry = Entry::from_path(key_name.clone())?;
+        let mut e: Entry = Entry::from_path(&key_name)?;
 
         // check if the entry does already end with a newline
         if !e.raw.ends_with('\n') {
             e.raw.push('\n');
         }
 
-        // check if the path is already set
-        if e.path.is_some() {
-            // check if the path is already set correctly
-            
-        } else {
-            // add path key
+        // check if the path is already set correctly
+        if match &e.path {
+            Some(p) => key_name == *p,
+            None => false
+        } {
             e.path = Some(key_name.clone());
-            e.raw.push_str(def::PATH_KEY);
-            e.raw.push_str(key_name.as_str());
-            e.raw.push('\n');
         }
 
         // check if an uuid is already present
         if e.uuid == Uuid::nil() {
-            // No uuid is present! generate one and write
             e.uuid = Uuid::new_v4();
-            e.raw.push_str(def::UUID_KEY);
-            e.raw.push_str(format!("{}", e.uuid).as_str());
-            e.raw.push('\n');
         }
 
         // write the new entry
@@ -107,6 +99,7 @@ fn walk_recursively(dir: &Path, force: bool) -> Result<Vec<String>, Error> {
                 // skip git folder
                 if path.ends_with(def::GIT_FOLDER) { continue }
                 if path.ends_with(def::UUID_FOLDER) { continue }
+                if path.ends_with(def::SYNC_FOLDER) { continue }
 
                 // ask to change to add all, to ask again or to skip the directory
                 let force_child = match force {
