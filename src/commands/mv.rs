@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::io::{Error, ErrorKind};
+use crate::errors::{Error, Result};
 use crate::commands::utils::{choose_entry, gen_path_interactive, question};
 
 pub fn mv(path: Option<&str>,
           id: Option<&str>,
           dst: Option<&str>,
-          use_rofi: bool) -> Result<(), Error> {
+          use_rofi: bool) -> Result<()> {
 
     let mut entry = choose_entry(path, id, use_rofi)?;
 
@@ -37,7 +37,7 @@ pub fn mv(path: Option<&str>,
             };
             match result {
                 Some(s) => s,
-                None => return Err(Error::new(ErrorKind::Interrupted, "New path is required!"))
+                None => return Err(Error::InvalidInput("New path is required!"))
             }
         }
     };

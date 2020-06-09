@@ -15,12 +15,13 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
 use std::fmt;
-use std::io::{Error, ErrorKind, Write};
+use std::io::Write;
 use std::process::{Command, Stdio};
 use std::iter;
 
 use uuid::Uuid;
 
+use crate::errors::{Error, Result};
 use crate::pass::index;
 use crate::def;
 use crate::config::CFG;
@@ -109,7 +110,7 @@ impl Entry {
         }
     }
 
-    pub fn get(id: Uuid) -> Result<Entry, Error> {
+    pub fn get(id: Uuid) -> Result<Entry> {
         let mut e = Entry::from_path(format!("{}/{}", CFG.main.uuid_folder, id))?;
         if e.uuid != id {
             println!("[Warning] Fixing UUID stored in entry {}", id);
@@ -118,7 +119,7 @@ impl Entry {
         Ok(e)
     }
 
-    pub fn from_path<S>(path: S) -> Result<Entry, Error>
+    pub fn from_path<S>(path: S) -> Result<Entry>
     where
          S: AsRef<str>
     {
@@ -133,20 +134,13 @@ impl Entry {
             hidden: true
         };
 
-        let raw = match String::from_utf8(
-            Command::new("pass")
-                .arg(path.as_ref())
-                .output()?
-                .stdout) {
-            Ok(r) => r,
-            Err(_) => return Err(Error::new(ErrorKind::InvalidData, "Cannot parse utf8!"))
-        };
+        let raw = String::from_utf8(Command::new("pass").arg(path.as_ref()).output()?.stdout)?;
 
         // parse the raw content, and remove the lines which are parsed (or add the lines which are not parsed to raw)
         let mut lines = raw.lines();
         e.password = match lines.next() {
             Some(s) => s.to_string(),
-            None => return Err(Error::new(ErrorKind::InvalidData, format!("Pass entry {} is empty!", path.as_ref())))
+            None => return Err(Error::EmptyEntry(format!("{}", path.as_ref())))
         };
 
         // search for username and path
@@ -177,10 +171,10 @@ impl Entry {
         Ok(e)
     }
 
-    pub fn create(&self) -> Result<(), Error> {
+    pub fn create(&self) -> Result<()> {
 
         if self.path.is_none() {
-            return Err(Error::new(ErrorKind::NotFound, "Entry has no path!"))
+            return Err(Error::EntryWithoutPath(format!("{}", self.uuid)))
         }
 
         self.write()?;
@@ -188,7 +182,7 @@ impl Entry {
         Ok(())
     }
 
-    pub fn write(&self) -> Result<(), Error> {
+    pub fn write(&self) -> Result<()> {
 
         // rebuild raw
         let mut raw_content: String = String::new();
@@ -239,7 +233,7 @@ impl Entry {
         Ok(())
     }
 
-    pub fn edit(&mut self) -> Result<(), Error> {
+    pub fn edit(&mut self) -> Result<()> {
 
         Command::new("pass")
             .arg("edit")
@@ -266,7 +260,7 @@ impl Entry {
 
     }
 
-    pub fn change_username(&mut self, username: Option<String>) -> Result<(), Error> {
+    pub fn change_username(&mut self, username: Option<String>) -> Result<()> {
         if username.is_some() {
             self.username = username;
             self.write()
@@ -275,7 +269,7 @@ impl Entry {
         }
     }
 
-    pub fn change_url(&mut self, url: Option<String>) -> Result<(), Error> {
+    pub fn change_url(&mut self, url: Option<String>) -> Result<()> {
         if url.is_some() {
             self.url = url;
             self.write()
@@ -284,12 +278,12 @@ impl Entry {
         }
     }
 
-    pub fn change_password(&mut self, new_pw: String) -> Result<(), Error> {
+    pub fn change_password(&mut self, new_pw: String) -> Result<()> {
         self.password = new_pw;
         self.write()
     }
 
-    pub fn change_raw_line(&mut self, old_line: Option<String>, new_line: Option<String>) -> Result<(), Error> {
+    pub fn change_raw_line(&mut self, old_line: Option<String>, new_line: Option<String>) -> Result<()> {
 
         if let Some(old_line) = old_line {
 
@@ -314,7 +308,7 @@ impl Entry {
 
             match found {
                 true => self.write(),
-                false => Err(Error::new(ErrorKind::InvalidInput, "Could not find the line to edit"))
+                false => Err(Error::EntryRawEdit("Could not find the line to edit".to_string()))
             }
 
         } else {
@@ -329,14 +323,14 @@ impl Entry {
         }
     }
 
-    pub fn change_path(&mut self, new_path: String) -> Result<(), Error> {
+    pub fn change_path(&mut self, new_path: String) -> Result<()> {
         self.change_path_keep_index(new_path.clone())?;
 
         // change index file
         index::mv(self.uuid, new_path)
     }
 
-    pub fn change_path_keep_index(&mut self, new_path: String) -> Result<(), Error> {
+    pub fn change_path_keep_index(&mut self, new_path: String) -> Result<()> {
 
         // set the new path
         self.path = Some(new_path.clone());

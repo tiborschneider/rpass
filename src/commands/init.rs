@@ -16,7 +16,6 @@
 
 use std::io;
 use std::io::prelude::*;
-use std::io::{Error, ErrorKind};
 use std::fs;
 use std::path::Path;
 
@@ -24,13 +23,14 @@ use dirs::home_dir;
 use uuid::Uuid;
 use text_io::read;
 
+use crate::errors::{Error, Result};
 use crate::pass::index;
 use crate::pass::entry::Entry;
 use crate::commands::utils;
 use crate::def;
 use crate::config::CFG;
 
-pub fn init(force: bool) -> Result<(), Error> {
+pub fn init(force: bool) -> Result<()> {
 
     let mut root_folder = home_dir().unwrap();
     root_folder.push(def::ROOT_FOLDER);
@@ -40,7 +40,7 @@ pub fn init(force: bool) -> Result<(), Error> {
     if !root_folder.is_dir() {
         // pass is not yet initialized!
         println!("[Error] Pass is not yet initialized! Initialize it by running \"pass init\"!");
-        return Err(Error::new(ErrorKind::NotFound, "pass is not yet initialized"));
+        return Err(Error::Other("pass is not yet initialized".to_string()));
     }
 
     // load the index if already exists
@@ -61,7 +61,7 @@ pub fn init(force: bool) -> Result<(), Error> {
     }
 
     match utils::confirm(format!("\nGenerating index for {} keys! Do you wish to continue?", to_index.len()), false) {
-        false => return Err(Error::new(ErrorKind::Interrupted, "Action interrupted!")),
+        false => return Err(Error::Interrupted),
         true => {}
     }
 
@@ -103,7 +103,7 @@ pub fn init(force: bool) -> Result<(), Error> {
 
 }
 
-fn walk_recursively(dir: &Path, force: bool) -> Result<Vec<String>, Error> {
+fn walk_recursively(dir: &Path, force: bool) -> Result<Vec<String>> {
     let mut res: Vec<String> = Vec::new();
     if dir.is_dir() {
         for entry in fs::read_dir(dir)? {

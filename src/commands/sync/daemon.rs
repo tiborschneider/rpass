@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::io::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::process::Command;
@@ -23,10 +22,11 @@ use std::{thread, time};
 use dirs::home_dir;
 use ctrlc;
 
+use crate::errors::Result;
 use crate::def;
 use crate::config::CFG;
 
-pub fn daemon() -> Result<(), Error> {
+pub fn daemon() -> Result<()> {
 
     // start a handler for ctrlc
     let running = Arc::new(AtomicBool::new(true));

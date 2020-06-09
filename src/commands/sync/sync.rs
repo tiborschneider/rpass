@@ -15,8 +15,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
 use std::io;
+use std::io::ErrorKind;
 use std::io::prelude::*;
-use std::io::{Error, ErrorKind};
 use std::fs::{self, File};
 use std::process::Command;
 use std::str;
@@ -25,6 +25,7 @@ use dirs::home_dir;
 use unidiff::{self, PatchSet};
 use uuid::Uuid;
 
+use crate::errors::{Error, Result};
 use crate::def;
 use crate::config::CFG;
 use crate::pass::index;
@@ -33,7 +34,7 @@ use crate::commands::sync::update_sync_commit_file;
 
 // TODO also sync the other way!
 
-pub fn sync(apply: bool) -> Result<(), Error> {
+pub fn sync(apply: bool) -> Result<()> {
 
     let mut slave_changes = false;
 
@@ -73,7 +74,7 @@ pub fn sync(apply: bool) -> Result<(), Error> {
         // extract the path from the diff
         let path = match old_file.into_iter().flatten().filter(|l| l.value.starts_with(CFG.pass.path_key)).next() {
             Some(l) => String::from(&l.value[CFG.pass.path_key.len()..]),
-            None => return Err(Error::new(ErrorKind::InvalidData, format!("Entry ({}) to delete did not contain a path key!", uuid)))
+            None => return Err(Error::EntryWithoutPath(format!("{}", uuid)))
         };
 
         println!("Remove entry [M -> S]: {}", path);
@@ -128,7 +129,7 @@ pub fn sync(apply: bool) -> Result<(), Error> {
 
         // check if the uuid exists and is indexed
         if !index_uuid_map.contains_key(path.as_str()) {
-            return Err(Error::new(ErrorKind::NotFound, "The slave entry does not exist in the index!"))
+            return Err(Error::SyncError("The slave entry does not exist in the index!"))
         }
 
         let uuid = index_uuid_map[path.as_str()];
@@ -175,7 +176,7 @@ pub fn sync(apply: bool) -> Result<(), Error> {
 
         // check if entry already exists in the index
         if !index_uuid_map.contains_key(path.as_str()) {
-            return Err(Error::new(ErrorKind::NotFound, "The slave entry does not exist in the index!"))
+            return Err(Error::SyncError("The slave entry does not exist in the index!"))
         }
 
         let uuid = index_uuid_map[path.as_str()];
@@ -186,10 +187,10 @@ pub fn sync(apply: bool) -> Result<(), Error> {
 
             // check if everything is ok
             if e.uuid != uuid {
-                return Err(Error::new(ErrorKind::InvalidData, "Slave has modified the uuid!"))
+                return Err(Error::SyncError("Slave has modified the uuid!"))
             }
             if e.path.as_ref() != Some(&path) {
-                return Err(Error::new(ErrorKind::InvalidData, "Slave has an invalid path!"))
+                return Err(Error::SyncError("Slave has an invalid path!"))
             }
 
             // write the changes
@@ -231,14 +232,11 @@ pub fn sync(apply: bool) -> Result<(), Error> {
     Ok(())
 }
 
-fn uuid_from_diff_filename(diff_filename: &String) -> Result<Uuid, Error> {
+fn uuid_from_diff_filename(diff_filename: &String) -> Result<Uuid> {
     let uuid_start = "b//".len() + CFG.main.uuid_folder.len();
     let uuid_end = diff_filename.len() - ".gpg".len();
     let uuid_slice = &diff_filename[uuid_start..uuid_end];
-    match Uuid::parse_str(uuid_slice) {
-        Ok(id) => Ok(id),
-        Err(_) => Err(Error::new(ErrorKind::InvalidData, "Invalid UUID while parsing name of added file in master patch"))
-    }
+    Ok(Uuid::parse_str(uuid_slice)?)
 }
 
 fn path_from_slave_diff_filename(diff_filename: &String) -> String {
@@ -247,7 +245,7 @@ fn path_from_slave_diff_filename(diff_filename: &String) -> String {
     return String::from(&diff_filename[path_start..path_end])
 }
 
-fn move_entry_to_slave(uuid: Uuid, path: &str, overwrite: bool) -> Result<(), Error> {
+fn move_entry_to_slave(uuid: Uuid, path: &str, overwrite: bool) -> Result<()> {
     let mut working_path = home_dir().unwrap();
     working_path.push(def::ROOT_FOLDER);
     let mut src_path = working_path.clone();
@@ -264,11 +262,11 @@ fn move_entry_to_slave(uuid: Uuid, path: &str, overwrite: bool) -> Result<(), Er
 
     // if overwrite is not set, we must create a new file, and thus, the dst_path is not allowed to exist already.
     if dst_path.is_file() && !overwrite {
-        return Err(Error::new(ErrorKind::AlreadyExists, "Slave already has an entry at the given location!"))
+        return Err(Error::SyncError("Slave already has an entry at the given location!"))
     }
     // if overwrite is set, we must edit the file, and thus, the dst_path must already exist
     if !dst_path.is_file() && overwrite {
-        return Err(Error::new(ErrorKind::NotFound, "Cannot modify slave entry, entry does not exist!"))
+        return Err(Error::SyncError("Cannot modify slave entry, entry does not exist!"))
     }
 
     // copy the file over
@@ -277,7 +275,7 @@ fn move_entry_to_slave(uuid: Uuid, path: &str, overwrite: bool) -> Result<(), Er
     Ok(())
 }
 
-fn remove_slave_entry(path: &str) -> Result<(), Error> {
+fn remove_slave_entry(path: &str) -> Result<()> {
     let mut dst_path = home_dir().unwrap();
     dst_path.push(def::ROOT_FOLDER);
     dst_path.push(CFG.main.sync_folder);
@@ -288,7 +286,7 @@ fn remove_slave_entry(path: &str) -> Result<(), Error> {
         Ok(()) => {},
         Err(e) => match e.kind() {
             ErrorKind::NotFound => println!("Warning: Entry {} does not exist for the slave!", path),
-            _ => return Err(e)
+            _ => return Err(Error::IoError(e))
         }
     }
 
@@ -300,7 +298,7 @@ fn remove_slave_entry(path: &str) -> Result<(), Error> {
             Ok(()) => {},
             Err(e) => match e.kind() {
                 ErrorKind::Other => break,
-                _ => return Err(e)
+                _ => Err(e)?
             }
         }
     }
@@ -308,7 +306,7 @@ fn remove_slave_entry(path: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn rename_slave_entry(old_path: &str, new_path: &str) -> Result<(), Error> {
+fn rename_slave_entry(old_path: &str, new_path: &str) -> Result<()> {
     let mut working_path = home_dir().unwrap();
     working_path.push(def::ROOT_FOLDER);
     working_path.push(CFG.main.sync_folder);
@@ -325,14 +323,16 @@ fn rename_slave_entry(old_path: &str, new_path: &str) -> Result<(), Error> {
 
     // check if the new_file already exists
     if dst_path.is_file() {
-        return Err(Error::new(ErrorKind::AlreadyExists, "Destination file already exists!"))
+        return Err(Error::SyncError("Destination file already exists!"))
     }
 
     // move the entry
-    fs::rename(src_path, dst_path)
+    fs::rename(src_path, dst_path)?;
+
+    Ok(())
 }
 
-fn parse_diffs() -> Result<(PatchSet, PatchSet), Error> {
+fn parse_diffs() -> Result<(PatchSet, PatchSet)> {
      let (master_commit, slave_commit) = get_last_sync_commits()?;
 
     // delete old file if it exists
@@ -361,21 +361,15 @@ fn parse_diffs() -> Result<(PatchSet, PatchSet), Error> {
 
     // parse the commit string
     let mut master_patchset = PatchSet::new();
-    match master_patchset.parse(str::from_utf8(&master_patch).unwrap()) {
-        Ok(()) => {},
-        Err(e) => return Err(Error::new(ErrorKind::InvalidData, format!("{:?}", e)))
-    };
+    master_patchset.parse(str::from_utf8(&master_patch)?)?;
 
     let mut slave_patchset = PatchSet::new();
-    match slave_patchset.parse(str::from_utf8(&slave_patch).unwrap()) {
-        Ok(()) => {},
-        Err(e) => return Err(Error::new(ErrorKind::InvalidData, format!("{:?}", e)))
-    };
+    slave_patchset.parse(str::from_utf8(&slave_patch)?)?;
 
     Ok((master_patchset, slave_patchset))
 }
 
-fn get_last_sync_commits() -> Result<(String, String), Error> {
+fn get_last_sync_commits() -> Result<(String, String)> {
 
     let mut sync_commit_file = home_dir().unwrap();
     sync_commit_file.push(def::ROOT_FOLDER);
@@ -389,16 +383,16 @@ fn get_last_sync_commits() -> Result<(String, String), Error> {
 
     let master_commit = match lines.next() {
         Some(s) => s?,
-        None => return Err(Error::new(ErrorKind::InvalidData, ".sync_commit file is invalid!"))
+        None => return Err(Error::SyncError(".sync_commit file is invalid!"))
     };
 
     let slave_commit = match lines.next() {
         Some(s) => s?,
-        None => return Err(Error::new(ErrorKind::InvalidData, ".sync_commit file is invalid!"))
+        None => return Err(Error::SyncError(".sync_commit file is invalid!"))
     };
 
     if master_commit.len() != 40 || slave_commit.len() != 40 {
-        Err(Error::new(ErrorKind::InvalidData, ".sync_commit file is invalid!"))
+        Err(Error::SyncError(".sync_commit file is invalid!"))
     } else {
         Ok((master_commit, slave_commit))
     }

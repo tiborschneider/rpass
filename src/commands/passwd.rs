@@ -14,18 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::io::{Error, ErrorKind};
-
 use rpassword;
 use fake::{Fake, faker};
 
+use crate::errors::{Error, Result};
 use crate::commands::utils::{choose_entry, question_rofi};
 
 pub fn passwd(path: Option<&str>,
               id: Option<&str>,
               new_passwd: Option<&str>,
               generate: Option<usize>,
-              use_rofi: bool) -> Result<(), Error> {
+              use_rofi: bool) -> Result<()> {
 
     let passwd = match generate {
         Some(x) => Some(faker::internet::en::Password(x..x+1).fake()),
@@ -48,7 +47,7 @@ pub fn passwd(path: Option<&str>,
                 true => {
                     match question_rofi("password")? {
                         Some(pw) => pw,
-                        None     => return Err(Error::new(ErrorKind::InvalidInput, "Password cannot be empty")),
+                        None     => return Err(Error::InvalidInput("Password cannot be empty")),
                     }
                 },
                 false => {
@@ -69,7 +68,7 @@ pub fn passwd(path: Option<&str>,
     };
 
     match passwd.len() {
-        0 => Err(Error::new(ErrorKind::InvalidInput, "Password cannot be empty!")),
+        0 => Err(Error::InvalidInput("Password cannot be empty!")),
         _ => entry.change_password(passwd)
     }
     

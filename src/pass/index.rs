@@ -15,7 +15,7 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
 use std::panic;
-use std::io::{Error, ErrorKind, Write};
+use std::io::Write;
 use std::process::{Command, Stdio};
 use std::collections::HashMap;
 
@@ -23,30 +23,28 @@ use petgraph::graph::{Graph, NodeIndex};
 
 use uuid::Uuid;
 
+use crate::errors::{Error, Result};
 use crate::config::CFG;
 
 #[allow(dead_code)]
-pub fn get_index() -> Result<Vec<(Uuid, String)>, Error> {
+pub fn get_index() -> Result<Vec<(Uuid, String)>> {
     // execute pass command
     let output = Command::new("pass")
         .arg(format!("{}/{}", CFG.main.uuid_folder, CFG.main.index_entry))
         .output()?;
 
     if !output.status.success() {
-        return Err(Error::new(ErrorKind::NotFound, "Index file was not found!"));
+        return Err(Error::NoIndexFile);
     }
 
     let result_utf8 = output.stdout;
 
     // parse to str
-    let result = match String::from_utf8(result_utf8) {
-        Ok(r) => r,
-        Err(_) => Err(Error::new(ErrorKind::InvalidData, "Cannot parse utf8!"))?
-    };
+    let result = String::from_utf8(result_utf8)?;
 
     // generate the resulting vector
 
-    let index_list: Result<Vec<(Uuid, String)>, _> = panic::catch_unwind(||
+    let index_list: std::result::Result<Vec<(Uuid, String)>, _> = panic::catch_unwind(||
         result.lines()
             .map(|s| s.split(" ").collect())
             .map(|v: Vec<&str>| (Uuid::parse_str(v[0]).unwrap(), v[1].to_string()))
@@ -55,7 +53,7 @@ pub fn get_index() -> Result<Vec<(Uuid, String)>, Error> {
 
     match index_list {
         Ok(l) => Ok(l),
-        Err(_) => Err(Error::new(ErrorKind::InvalidData, "Invalid UUID"))
+        Err(_) => Err(Error::Other("UUID Error: cannot parse uuid!".to_string()))
     }
 
 }
@@ -124,7 +122,7 @@ pub fn to_graph<'a>(index_list: &'a Vec<(Uuid, String)>) -> (Graph<&'a str, ()>,
 
 }
 
-pub fn write(index_list: &Vec<(Uuid, String)>) -> Result<(), Error> {
+pub fn write(index_list: &Vec<(Uuid, String)>) -> Result<()> {
 
     let mut p = Command::new("pass")
         .arg("insert")
@@ -147,13 +145,13 @@ pub fn write(index_list: &Vec<(Uuid, String)>) -> Result<(), Error> {
 
 }
 
-pub fn insert(id: Uuid, path: &String) -> Result<(), Error> {
+pub fn insert(id: Uuid, path: &String) -> Result<()> {
     let mut index_list = get_index()?;
     index_list.push((id, path.to_string()));
     write(&index_list)
 }
 
-pub fn remove(id: Uuid) -> Result<(), Error> {
+pub fn remove(id: Uuid) -> Result<()> {
 
     let index_list: Vec<(Uuid, String)> = get_index()?
         .into_iter()
@@ -171,7 +169,7 @@ pub fn remove(id: Uuid) -> Result<(), Error> {
 
 }
 
-pub fn mv(id: Uuid, dst: String) -> Result<(), Error> {
+pub fn mv(id: Uuid, dst: String) -> Result<()> {
 
     let mut index_list: Vec<(Uuid, String)> = get_index()?
         .into_iter()

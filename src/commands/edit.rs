@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::io::Error;
 
 use rustofi::window::{Window, Dimensions};
 use notify_rust::{Notification, NotificationUrgency, Timeout};
 
+use crate::errors::Result;
 use crate::commands::utils::{choose_entry, question_rofi, notify_error, confirm, notify_action};
 use crate::commands::{mv, delete, passwd};
 use crate::pass::entry::Entry;
@@ -26,7 +26,7 @@ use crate::def;
 
 pub fn edit(path: Option<&str>,
             id: Option<&str>,
-            use_rofi: bool) -> Result<(), Error> {
+            use_rofi: bool) -> Result<()> {
 
     if use_rofi {
         edit_interactive(path, id)
@@ -37,7 +37,7 @@ pub fn edit(path: Option<&str>,
 
 }
 
-fn edit_interactive(path: Option<&str>, id: Option<&str>,) -> Result<(), Error> {
+fn edit_interactive(path: Option<&str>, id: Option<&str>,) -> Result<()> {
 
     let mut entry = choose_entry(path, id, true)?;
     let entry_id = entry.uuid.clone();
@@ -70,7 +70,7 @@ fn edit_interactive(path: Option<&str>, id: Option<&str>,) -> Result<(), Error> 
                             .summary("UUID cannot be modified!")
                             .urgency(NotificationUrgency::Low)
                             .timeout(Timeout::Milliseconds(5000))
-                            .show().unwrap();
+                            .show()?;
                     },
                     EditMenuAction::EditUsername => {
                         match question_rofi("Username") {

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::io::{Error, ErrorKind};
+use crate::errors::Result;
 
 use rustofi::window::{Window, Dimensions};
 
@@ -34,7 +34,7 @@ enum Action {
     Exit
 }
 
-pub fn rofi_app() -> Result<(), Error> {
+pub fn rofi_app() -> Result<()> {
     // endless loop
     loop {
         match main_menu() {
@@ -75,14 +75,14 @@ fn action_wrapper(action: Action) {
         Action::Get => action_get(),
         Action::New => action_new(),
         Action::Edit => action_edit(),
-        _ => Err(Error::new(ErrorKind::Other, "Not Implemented"))
+        Action::Exit => Ok(()),
     } {
         Ok(()) => {}
         Err(e) => notify_error(e)
     }
 }
 
-fn action_new() -> Result<(), Error> {
+fn action_new() -> Result<()> {
     let random_pw = match confirm("Generate a random password?", true) {
         true => Some(20),
         false => None
@@ -90,10 +90,10 @@ fn action_new() -> Result<(), Error> {
     insert(None, None, None, None, random_pw, true)
 }
 
-fn action_get() -> Result<(), Error> {
+fn action_get() -> Result<()> {
     get(None, None, true, false)
 }
 
-fn action_edit() -> Result<(), Error> {
+fn action_edit() -> Result<()> {
     edit(None, None, true)
 }

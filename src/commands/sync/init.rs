@@ -16,18 +16,18 @@
 
 use std::io;
 use std::io::prelude::*;
-use std::io::{Error, ErrorKind};
 use std::fs::{self, File, OpenOptions};
 use std::process::Command;
 
 use dirs::home_dir;
 
+use crate::errors::{Error, Result};
 use crate::def;
 use crate::config::CFG;
 use crate::pass::index;
 use crate::commands::sync::update_sync_commit_file;
 
-pub fn init() -> Result<(), Error> {
+pub fn init() -> Result<()> {
 
     // setup gitignore in main pass repo
     init_gitignore()?;
@@ -69,7 +69,7 @@ After those steps, you are done and you can run rpass sync daemon
     Ok(())
 }
 
-fn init_gitignore() -> Result<(), Error> {
+fn init_gitignore() -> Result<()> {
     // check if .gitignore is created and contains the line .sync
     let mut git_changes = false;
 
@@ -132,7 +132,7 @@ fn init_gitignore() -> Result<(), Error> {
     Ok(())
 }
 
-fn init_snyc_folder() -> Result<(), Error> {
+fn init_snyc_folder() -> Result<()> {
 
     // generate .sync folder
     println!("Generating .sync folder!");
@@ -143,7 +143,7 @@ fn init_snyc_folder() -> Result<(), Error> {
         fs::create_dir(&working_path)?;
     } else {
         println!("Error: the sync folder already exists! To re-initialize it, delete the sync folder entirely and try again!");
-        return Err(Error::new(ErrorKind::AlreadyExists, ".sync folder already exists"));
+        return Err(Error::SyncError(".sync folder already exists"));
     }
 
     // initialize git repo
@@ -223,7 +223,7 @@ fn init_snyc_folder() -> Result<(), Error> {
     Ok(())
 }
 
-fn do_initial_sync() -> Result<(), Error> {
+fn do_initial_sync() -> Result<()> {
 
     let index_list = index::get_index()?;
 

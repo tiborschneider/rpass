@@ -15,7 +15,6 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
 use std::process::exit;
-use std::io::ErrorKind;
 
 use clap::{Arg, App, SubCommand};
 
@@ -24,6 +23,9 @@ mod commands;
 mod rofi_app;
 mod def;
 mod config;
+mod errors;
+
+use errors::Error;
 
 const DEFAULT_PW_SIZE: usize = 20;
 
@@ -276,13 +278,11 @@ fn main() {
 
     match result {
         Ok(()) => {},
-        Err(e) => {
-            match e.kind() {
-                ErrorKind::Interrupted => {},
-                _ => {
-                    eprintln!("Error: {:#?}", e);
-                    exit(1);
-                }
+        Err(e) => match e {
+            Error::Interrupted => {},
+            _ => {
+                eprintln!("Error: {:#?}", e);
+                exit(1);
             }
         }
     }

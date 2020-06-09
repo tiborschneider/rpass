@@ -14,20 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::io::{Error, ErrorKind};
 use std::fs;
 use std::collections::HashMap;
 
 use uuid::Uuid;
 use dirs::home_dir;
 
+use crate::errors::{Error, Result};
 use crate::pass::index;
 use crate::pass::entry::Entry;
 use crate::commands::utils::{confirm, gen_path_interactive, two_options};
 use crate::def;
 use crate::config::CFG;
 
-pub fn fix_index() -> Result<(), Error> {
+pub fn fix_index() -> Result<()> {
 
     let index_file = index::get_index()?;
     let path_lookup = index::to_hashmap(&index_file);
@@ -37,7 +37,7 @@ pub fn fix_index() -> Result<(), Error> {
     uuid_folder.push(CFG.main.uuid_folder);
 
     if !uuid_folder.is_dir() {
-        return Err(Error::new(ErrorKind::NotFound, format!("UUID folder was not found: {:?}", uuid_folder)));
+        return Err(Error::ManagedFolderNotFound);
     }
 
     for key_file in fs::read_dir(uuid_folder)? {
@@ -75,7 +75,7 @@ pub fn fix_index() -> Result<(), Error> {
     Ok(())
 }
 
-fn check_fix_entry(entry_id: Uuid, path_lookup: &HashMap<Uuid, &str>) -> Result<(), Error> {
+fn check_fix_entry(entry_id: Uuid, path_lookup: &HashMap<Uuid, &str>) -> Result<()> {
 
     let mut entry = Entry::get(entry_id)?;
 

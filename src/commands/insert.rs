@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::io::{Error, ErrorKind};
+use crate::errors::{Error, Result};
 use rpassword;
 use fake::{Fake, faker};
 
@@ -26,24 +26,17 @@ pub fn insert(path: Option<&str>,
               password: Option<&str>,
               url: Option<&str>,
               generate: Option<usize>,
-              use_rofi: bool) -> Result<(), Error> {
+              use_rofi: bool) -> Result<()> {
 
     let path = match path {
         Some(s) => s.to_string(),
         None => {
-            if use_rofi {
-                match utils::gen_path_interactive()? {
-                    Some(s) => {
-                        println!("path: {}", s);
-                        s
-                    },
-                    None => return Err(Error::new(ErrorKind::InvalidInput, "path is required!")),
-                }
-            } else {
-                match utils::question("path", use_rofi)? {
-                    Some(s) => s,
-                    None => return Err(Error::new(ErrorKind::InvalidInput, "path is required!"))
-                }
+            match match use_rofi {
+                true => utils::gen_path_interactive()?,
+                false => utils::question("path", use_rofi)?
+            } {
+                Some(s) => s,
+                None => return Err(Error::InvalidInput("Entry path is required"))
             }
         }
     };
@@ -61,7 +54,7 @@ pub fn insert(path: Option<&str>,
                 if use_rofi {
                     match utils::question("password", use_rofi)? {
                         Some(pw) => pw,
-                        None => return Err(Error::new(ErrorKind::InvalidInput, "Password is required!"))
+                        None => return Err(Error::InvalidInput("Password is required!"))
                     }
                 } else {
                     let mut passwd: String;
@@ -101,5 +94,4 @@ fn generate_password(x: usize) -> String {
     let pw: String = faker::internet::en::Password(x..x+1).fake();
     println!("Password: {}", pw);
     pw
-        
 }

@@ -19,7 +19,6 @@ use std::io::prelude::*;
 use std::clone::Clone;
 use std::fmt::Display;
 use std::process::Command;
-use std::io::{Error, ErrorKind};
 use std::{thread, time};
 
 use rustofi::components::{ActionList, ItemList, EntryBox};
@@ -31,6 +30,7 @@ use clipboard::{ClipboardProvider, ClipboardContext};
 use notify_rust::{Notification, NotificationUrgency, Timeout};
 use interactor;
 
+use crate::errors::{Error, Result};
 use crate::pass::index::{get_index, to_graph, to_hashmap_reverse};
 use crate::pass::entry::Entry;
 use crate::def;
@@ -97,23 +97,20 @@ pub fn rofi_display_action<'a, T: Display + Clone>(rofi: &mut ActionList<'a, T>,
     }
 }
 
-pub fn choose_entry(path: Option<&str>, id: Option<&str>, use_rofi: bool) -> Result<Entry, Error> {
+pub fn choose_entry(path: Option<&str>, id: Option<&str>, use_rofi: bool) -> Result<Entry> {
     match (path, id) {
         (Some(path), None) => {
             let index_list = get_index()?;
             let uuid_lookup = to_hashmap_reverse(&index_list);
             let entry_id = match uuid_lookup.get(path) {
                 Some(id) => id,
-                None => return Err(Error::new(ErrorKind::NotFound, "Path is not present in the index file!"))
+                None => return Err(Error::UnknownPath(path.to_string()))
             };
             Entry::get(entry_id.clone())
         },
 
         (None, Some(id)) => {
-            let id = match Uuid::parse_str(id) {
-                Ok(id) => id,
-                Err(_) => return Err(Error::new(ErrorKind::Other, "Cannot parse UUID"))
-            };
+            let id = Uuid::parse_str(id)?;
             Entry::get(id)
         },
         
@@ -132,7 +129,7 @@ pub fn choose_entry(path: Option<&str>, id: Option<&str>, use_rofi: bool) -> Res
 
 }
 
-fn choose_entry_fzf() -> Result<Entry, Error> {
+fn choose_entry_fzf() -> Result<Entry> {
     let index_list = get_index()?;
     let index_list_clone = index_list.clone();
     let uuid_lookup = to_hashmap_reverse(&index_list_clone);
@@ -141,11 +138,11 @@ fn choose_entry_fzf() -> Result<Entry, Error> {
     let choice = interactor::pick_from_list(Some(&mut Command::new("fzf")), &path_list, "")?;
     match uuid_lookup.get(choice.as_str()) {
         Some(id) => Entry::get(*id),
-        None => Err(Error::new(ErrorKind::NotFound, format!("Entry {} was not found!", choice)))
+        None => Err(Error::UnknownPath(choice))
     }
 }
 
-fn choose_entry_rofi() -> Result<Entry, Error> {
+fn choose_entry_rofi() -> Result<Entry> {
     let index_list = get_index()?;
     let index_list_clone = index_list.clone();
     let uuid_lookup = to_hashmap_reverse(&index_list_clone);
@@ -157,14 +154,14 @@ fn choose_entry_rofi() -> Result<Entry, Error> {
         RustofiResult::Selection(s) => {
             let entry_id = match uuid_lookup.get(s.as_str()) {
                 Some(id) => id,
-                None => return Err(Error::new(ErrorKind::NotFound, "Path is not present in the index file!"))
+                None => return Err(Error::UnknownPath(s))
             };
             Entry::get(entry_id.clone())
         },
-        RustofiResult::Blank        => Err(Error::new(ErrorKind::Interrupted, "User chose blank option")),
-        RustofiResult::Cancel       => Err(Error::new(ErrorKind::Interrupted, "User chose cancel option")),
-        RustofiResult::Exit         => Err(Error::new(ErrorKind::Interrupted, "User exited rofi")),
-        _                           => Err(Error::new(ErrorKind::Other, "Rofi failed"))
+        RustofiResult::Blank        => Err(Error::Interrupted),
+        RustofiResult::Cancel       => Err(Error::Interrupted),
+        RustofiResult::Exit         => Err(Error::Interrupted),
+        _                           => Err(Error::Other("Rofi failed".to_string()))
     }
 }
 
@@ -172,15 +169,15 @@ pub fn identity_callback(name: &String) -> RustofiResult {
     RustofiResult::Selection(name.clone())
 }
 
-pub fn gen_path_interactive() -> Result<Option<String>, Error> {
+pub fn gen_path_interactive() -> Result<Option<String>> {
     match gen_path_recursive("".to_string()) {
         RustofiResult::Selection(s) => Ok(Some(s)),
-        RustofiResult::Action(_)    => Err(Error::new(ErrorKind::Other, "Rofi returned an action instead of a selection!")),
-        RustofiResult::Success      => Err(Error::new(ErrorKind::UnexpectedEof, "Success returned without a string!")),
+        RustofiResult::Action(_)    => Err(Error::Other("Rofi returned an action instead of a selection!".to_string())),
+        RustofiResult::Success      => Err(Error::Other("Success returned without a string!".to_string())),
         RustofiResult::Blank        => Ok(None),
-        RustofiResult::Error        => Err(Error::new(ErrorKind::Other, "Rofi returned unexpected error")),
+        RustofiResult::Error        => Err(Error::Other("Rofi returned unexpected error".to_string())),
         RustofiResult::Cancel       => Ok(None),
-        RustofiResult::Exit         => Err(Error::new(ErrorKind::Interrupted, "Exit option chosen!")),
+        RustofiResult::Exit         => Err(Error::Interrupted),
     }
 }
 
@@ -273,14 +270,14 @@ fn confirm_rofi<S: AsRef<str>>(q: S) -> bool {
     }
 }
 
-pub fn question<S: AsRef<str>>(q: S, use_rofi: bool) -> Result<Option<String>, Error> {
+pub fn question<S: AsRef<str>>(q: S, use_rofi: bool) -> Result<Option<String>> {
     match use_rofi {
         true => question_rofi(q),
         false => question_stdio(q)
     }
 }
 
-fn question_stdio<S: AsRef<str>>(q: S) -> Result<Option<String>, Error> {
+fn question_stdio<S: AsRef<str>>(q: S) -> Result<Option<String>> {
     print!("{}: ", q.as_ref());
     io::stdout().flush().ok().expect("Could not flush stdout");
     let answer: String = read!("{}\n");
@@ -291,7 +288,7 @@ fn question_stdio<S: AsRef<str>>(q: S) -> Result<Option<String>, Error> {
     }
 }
 
-pub fn question_rofi<S: AsRef<str>>(q: S) -> Result<Option<String>, Error> {
+pub fn question_rofi<S: AsRef<str>>(q: S) -> Result<Option<String>> {
     let result = EntryBox::create_window()
                 .prompt(format!("{}", q.as_ref()))
                 .lines(2)
@@ -302,14 +299,14 @@ pub fn question_rofi<S: AsRef<str>>(q: S) -> Result<Option<String>, Error> {
     match result {
         Ok(input) => {
             if input == "" || input == def::PANGO_CANCEL_NAME {
-                Err(Error::new(ErrorKind::Interrupted, "User interrupted question"))
+                Err(Error::Interrupted)
             } else if input == def::PANGO_EMPTY_NAME {
                 Ok(None)
             } else {
                 Ok(Some(input))
             }
         }
-        Err(_) => Err(Error::new(ErrorKind::Interrupted, "User interrupted question"))
+        Err(_) => Err(Error::Interrupted)
     }
 }
 
@@ -320,16 +317,16 @@ pub fn two_options<S: AsRef<str>>(primary: S, secondary: S) -> bool {
     answer != "2"
 }
 
-pub fn copy_to_clipboard<S: AsRef<str>>(s: String, action: S, wait_for: Option<u64>) -> Result<(), Error> {
+pub fn copy_to_clipboard<S: AsRef<str>>(s: String, action: S, wait_for: Option<u64>) -> Result<()> {
 
     let mut ctx: ClipboardContext = match ClipboardProvider::new() {
         Ok(ctx) => ctx,
-        Err(_) => return Err(Error::new(ErrorKind::Other, "Cannot generate clipboard context"))
+        Err(_) => return Err(Error::ClipboardError)
     };
 
     match ctx.set_contents(s) {
         Ok(_) => {},
-        Err(_) => return Err(Error::new(ErrorKind::Other, "Cannot set clipboard content!"))
+        Err(_) => return Err(Error::ClipboardError)
     };
 
     let action_string = format!("Copied {}", action.as_ref());
@@ -338,7 +335,7 @@ pub fn copy_to_clipboard<S: AsRef<str>>(s: String, action: S, wait_for: Option<u
         .summary(action_string.as_str())
         .urgency(NotificationUrgency::Normal)
         .timeout(Timeout::Milliseconds(5000))
-        .show().unwrap();
+        .show()?;
 
     match wait_for {
         Some(duration) => delayed_clipboard_clear(duration),
@@ -346,7 +343,7 @@ pub fn copy_to_clipboard<S: AsRef<str>>(s: String, action: S, wait_for: Option<u
     }
 }
 
-pub fn delayed_clipboard_clear(duration: u64) -> Result<(), Error> {
+pub fn delayed_clipboard_clear(duration: u64) -> Result<()> {
 
     // wait for 5 seconds
     let ten_millis = time::Duration::from_millis(duration);
@@ -356,18 +353,18 @@ pub fn delayed_clipboard_clear(duration: u64) -> Result<(), Error> {
 }
 
 pub fn notify_error(e: Error) {
-    match e.kind() {
-        ErrorKind::Interrupted => {
+    match e {
+        Error::Interrupted => {
             Notification::new()
                 .summary("User interrupted action")
                 .urgency(NotificationUrgency::Low)
                 .timeout(Timeout::Milliseconds(4000))
                 .show().unwrap();
         },
-        ErrorKind::InvalidInput => {
+        Error::InvalidInput(s) => {
             Notification::new()
                 .summary("Action failed!")
-                .body("User input is invalid")
+                .body(format!("User input is invalid:\n{}", s).as_str())
                 .urgency(NotificationUrgency::Normal)
                 .timeout(Timeout::Milliseconds(10000))
                 .show().unwrap();

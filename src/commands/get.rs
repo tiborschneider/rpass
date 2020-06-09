@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::io::Error;
+use crate::errors::Result;
 
 use rustofi::window::{Window, Dimensions};
 
@@ -26,7 +26,7 @@ use crate::def;
 pub fn get(path: Option<&str>,
            id: Option<&str>,
            use_rofi: bool,
-           only_password: bool) -> Result<(), Error> {
+           only_password: bool) -> Result<()> {
 
     let mut entry = choose_entry(path, id, use_rofi)?;
     if use_rofi {
@@ -42,7 +42,7 @@ pub fn get(path: Option<&str>,
 
 }
 
-fn get_rofi_menu(entry: &mut Entry) -> Result<(), Error> {
+fn get_rofi_menu(entry: &mut Entry) -> Result<()> {
     loop {
         let mut lines: Vec<String> = entry.get_string().lines().map(|x| x.to_string()).collect();
         lines.push(String::new());

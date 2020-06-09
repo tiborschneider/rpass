@@ -14,15 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::io::Error;
 
 use petgraph::graph::{Graph, NodeIndex};
 use petgraph::Direction::Outgoing;
 use ansi_term::Colour::Blue;
 
+use crate::errors::Result;
 use crate::pass;
 
-pub fn list() -> Result<(), Error> {
+pub fn list() -> Result<()> {
     let mut index_list = pass::index::get_index()?;
     index_list.sort_by(|a, b| b.1.to_lowercase().cmp(&a.1.to_lowercase()));
     let (graph, root) = pass::index::to_graph(&index_list);

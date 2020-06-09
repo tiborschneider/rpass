@@ -16,7 +16,7 @@
 
 use std::fmt;
 use std::io::prelude::*;
-use std::io::{Error, ErrorKind, Write, BufReader};
+use std::io::{Write, BufReader};
 use std::path::PathBuf;
 use std::fs::{File, remove_file, OpenOptions};
 
@@ -24,12 +24,13 @@ use uuid::Uuid;
 use rustofi::window::{Dimensions, Window};
 use dirs::home_dir;
 
+use crate::errors::{Error, Result};
 use crate::pass::entry::Entry;
 use crate::commands::utils;
 use crate::def;
 use crate::config::CFG;
 
-pub fn interactive() -> Result<(), Error> {
+pub fn interactive() -> Result<()> {
     // choose the entry
     match previous_entry()? {
         Some(id) => {
@@ -50,7 +51,7 @@ pub fn interactive() -> Result<(), Error> {
                 .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
                 .show(lines.clone()) {
                 Ok(s)  => action_copy_entry(&entry, get_copy_action(s)),
-                Err(_) => Err(Error::new(ErrorKind::Other, "Rofi exited unsuccessfully"))
+                Err(_) => Err(Error::Other("Rofi exited unsuccessfully".to_string()))
             }
         }
     }
@@ -81,7 +82,7 @@ fn get_copy_action(s: String) -> CopyAction {
     else { CopyAction::Exit }
 }
 
-fn action_copy_entry(entry: &Entry, action: CopyAction) -> Result<(), Error> {
+fn action_copy_entry(entry: &Entry, action: CopyAction) -> Result<()> {
     let mut copy_both: bool = false;
     let entry_to_copy: String = match action {
         CopyAction::Username => entry.username.clone().unwrap(),
@@ -90,7 +91,7 @@ fn action_copy_entry(entry: &Entry, action: CopyAction) -> Result<(), Error> {
             copy_both = true;
             entry.username.clone().unwrap()
         }
-        CopyAction::Exit => return Err(Error::new(ErrorKind::Interrupted, "Interrupted"))
+        CopyAction::Exit => return Err(Error::Interrupted)
     };
 
     let action_str = if copy_both {
@@ -103,7 +104,7 @@ fn action_copy_entry(entry: &Entry, action: CopyAction) -> Result<(), Error> {
     utils::copy_to_clipboard(entry_to_copy, action_str, Some(5000))
 }
 
-fn previous_entry() -> Result<Option<Uuid>, Error> {
+fn previous_entry() -> Result<Option<Uuid>> {
     let last_command_file = get_last_command_file();
     match last_command_file.exists() {
         false => Ok(None),
@@ -113,17 +114,14 @@ fn previous_entry() -> Result<Option<Uuid>, Error> {
             let mut content = String::new();
             buf_reader.read_line(&mut content)?;
             content.retain(|c| !c.is_whitespace());
-            let result = match Uuid::parse_str(&content) {
-                Ok(id) => Ok(Some(id)),
-                Err(_) => Err(Error::new(ErrorKind::InvalidData, "Cannot parse UUID"))
-            };
+            let result = Uuid::parse_str(&content)?;
             remove_file(last_command_file.as_path())?;
-            result
+            Ok(Some(result))
         }
     }
 }
 
-fn write_next_entry(id: Uuid) -> Result<(), Error> {
+fn write_next_entry(id: Uuid) -> Result<()> {
     OpenOptions::new()
         .create(true)
         .write(true)
