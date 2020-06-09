@@ -25,6 +25,7 @@ use crate::pass::index;
 use crate::pass::entry::Entry;
 use crate::commands::utils::{confirm, gen_path_interactive, two_options};
 use crate::def;
+use crate::config::CFG;
 
 pub fn fix_index() -> Result<(), Error> {
 
@@ -33,7 +34,7 @@ pub fn fix_index() -> Result<(), Error> {
 
     let mut uuid_folder = home_dir().unwrap();
     uuid_folder.push(def::ROOT_FOLDER);
-    uuid_folder.push(def::UUID_FOLDER);
+    uuid_folder.push(CFG.main.uuid_folder);
 
     if !uuid_folder.is_dir() {
         return Err(Error::new(ErrorKind::NotFound, format!("UUID folder was not found: {:?}", uuid_folder)));
@@ -56,7 +57,7 @@ pub fn fix_index() -> Result<(), Error> {
             continue;
         }
 
-        if key_name == def::INDEX_FILE {
+        if key_name == CFG.main.index_file {
             // skip index cile
             continue;
         }

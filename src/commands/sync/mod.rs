@@ -23,6 +23,7 @@ use std::env;
 use dirs::home_dir;
 
 use crate::def;
+use crate::config::CFG;
 
 mod sync;
 mod daemon;
@@ -56,7 +57,7 @@ fn update_sync_commit_file() -> Result<(), Error> {
         .output()?
         .stdout;
 
-    working_path.push(def::SYNC_FOLDER);
+    working_path.push(CFG.main.sync_folder);
 
     // get slave commit
     env::set_current_dir(&working_path)?;
@@ -66,7 +67,7 @@ fn update_sync_commit_file() -> Result<(), Error> {
         .output()?
         .stdout;
 
-    working_path.push(def::SYNC_COMMIT_FILE);
+    working_path.push(CFG.main.sync_commit_file);
 
     if working_path.is_file() {
         fs::remove_file(&working_path)?;

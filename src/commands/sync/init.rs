@@ -23,6 +23,7 @@ use std::process::Command;
 use dirs::home_dir;
 
 use crate::def;
+use crate::config::CFG;
 use crate::pass::index;
 use crate::commands::sync::update_sync_commit_file;
 
@@ -81,7 +82,7 @@ fn init_gitignore() -> Result<(), Error> {
         {
             let gitignore_file = File::open(&gitignore_path)?;
             let reader = io::BufReader::new(gitignore_file);
-            match reader.lines().filter(|l| l.as_ref().unwrap().starts_with(def::SYNC_FOLDER)).next() {
+            match reader.lines().filter(|l| l.as_ref().unwrap().starts_with(CFG.main.sync_folder)).next() {
                 Some(_) => line_found = true,
                 None => {}
             }
@@ -94,7 +95,7 @@ fn init_gitignore() -> Result<(), Error> {
                 .append(true)
                 .create(false)
                 .open(&gitignore_path)?;
-            gitignore_file.write_all(def::SYNC_FOLDER.as_bytes())?;
+            gitignore_file.write_all(CFG.main.sync_folder.as_bytes())?;
             gitignore_file.write_all(b"\n")?;
             git_changes = true;
         }
@@ -105,7 +106,7 @@ fn init_gitignore() -> Result<(), Error> {
             .create(true)
             .write(true)
             .open(&gitignore_path)?;
-        gitignore_file.write_all(def::SYNC_FOLDER.as_bytes())?;
+        gitignore_file.write_all(CFG.main.sync_folder.as_bytes())?;
         gitignore_file.write_all(b"\n")?;
         git_changes = true;
     }
@@ -137,7 +138,7 @@ fn init_snyc_folder() -> Result<(), Error> {
     println!("Generating .sync folder!");
     let mut working_path = home_dir().unwrap();
     working_path.push(def::ROOT_FOLDER);
-    working_path.push(def::SYNC_FOLDER);
+    working_path.push(CFG.main.sync_folder);
     if !working_path.is_dir() {
         fs::create_dir(&working_path)?;
     } else {
@@ -177,7 +178,7 @@ fn init_snyc_folder() -> Result<(), Error> {
             .write(true)
             .create(true)
             .open(&working_path)?;
-        gitignore_file.write_all(def::SYNC_COMMIT_FILE.as_bytes())?;
+        gitignore_file.write_all(CFG.main.sync_commit_file.as_bytes())?;
         gitignore_file.write_all(b"\n")?;
     }
     working_path.pop();
@@ -228,11 +229,11 @@ fn do_initial_sync() -> Result<(), Error> {
 
     let mut sync_path = home_dir().unwrap();
     sync_path.push(def::ROOT_FOLDER);
-    sync_path.push(def::SYNC_FOLDER);
+    sync_path.push(CFG.main.sync_folder);
 
     let mut uuid_path = home_dir().unwrap();
     uuid_path.push(def::ROOT_FOLDER);
-    uuid_path.push(def::UUID_FOLDER);
+    uuid_path.push(CFG.main.uuid_folder);
 
     let mut git_changes = false;
 

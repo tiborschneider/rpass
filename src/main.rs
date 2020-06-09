@@ -23,6 +23,7 @@ mod pass;
 mod commands;
 mod rofi_app;
 mod def;
+mod config;
 
 const DEFAULT_PW_SIZE: usize = 20;
 

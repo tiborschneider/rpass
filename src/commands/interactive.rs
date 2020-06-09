@@ -27,6 +27,7 @@ use dirs::home_dir;
 use crate::pass::entry::Entry;
 use crate::commands::utils;
 use crate::def;
+use crate::config::CFG;
 
 pub fn interactive() -> Result<(), Error> {
     // choose the entry
@@ -133,6 +134,6 @@ fn write_next_entry(id: Uuid) -> Result<(), Error> {
 
 fn get_last_command_file() -> PathBuf {
     let mut last_command_file = home_dir().unwrap();
-    last_command_file.push(def::LAST_COMMAND_FILE);
+    last_command_file.push(CFG.main.last_command_file);
     last_command_file
 }

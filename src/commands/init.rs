@@ -28,6 +28,7 @@ use crate::pass::index;
 use crate::pass::entry::Entry;
 use crate::commands::utils;
 use crate::def;
+use crate::config::CFG;
 
 pub fn init(force: bool) -> Result<(), Error> {
 
@@ -114,8 +115,8 @@ fn walk_recursively(dir: &Path, force: bool) -> Result<Vec<String>, Error> {
 
                 // skip git folder
                 if path.ends_with(def::GIT_FOLDER) { continue }
-                if path.ends_with(def::UUID_FOLDER) { continue }
-                if path.ends_with(def::SYNC_FOLDER) { continue }
+                if path.ends_with(CFG.main.uuid_folder) { continue }
+                if path.ends_with(CFG.main.sync_folder) { continue }
 
                 // ask to change to add all, to ask again or to skip the directory
                 let force_child = match force {

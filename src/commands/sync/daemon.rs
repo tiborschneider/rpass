@@ -24,6 +24,7 @@ use dirs::home_dir;
 use ctrlc;
 
 use crate::def;
+use crate::config::CFG;
 
 pub fn daemon() -> Result<(), Error> {
 
@@ -50,7 +51,7 @@ pub fn daemon() -> Result<(), Error> {
     // get sync path
     let mut sync_path = home_dir().unwrap();
     sync_path.push(def::ROOT_FOLDER);
-    sync_path.push(def::SYNC_FOLDER);
+    sync_path.push(CFG.main.sync_folder);
 
     // pull and push changes to local repository
     println!("pushing changes from local repository");

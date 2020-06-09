@@ -23,6 +23,7 @@ use uuid::Uuid;
 
 use crate::pass::index;
 use crate::def;
+use crate::config::CFG;
 
 #[derive(Clone)]
 pub struct Entry {
@@ -109,7 +110,7 @@ impl Entry {
     }
 
     pub fn get(id: Uuid) -> Result<Entry, Error> {
-        let mut e = Entry::from_path(format!("{}/{}", def::UUID_FOLDER, id))?;
+        let mut e = Entry::from_path(format!("{}/{}", CFG.main.uuid_folder, id))?;
         if e.uuid != id {
             println!("[Warning] Fixing UUID stored in entry {}", id);
             e.uuid = id;
@@ -151,16 +152,16 @@ impl Entry {
         // search for username and path
         for line in lines {
             let line_lower = line.to_lowercase();
-            if line_lower.starts_with(def::USER_KEY) {
-                e.username = Some(line[def::USER_KEY.len()..].to_string());
-            } else if line_lower.starts_with(def::USER_KEY_ALT) {
-                e.username = Some(line[def::USER_KEY_ALT.len()..].to_string());
-            } else if line_lower.starts_with(def::PATH_KEY) {
-                e.path = Some(line[def::PATH_KEY.len()..].to_string());
-            } else if line_lower.starts_with(def::URL_KEY) {
-                e.url = Some(line[def::URL_KEY.len()..].to_string());
-            } else if line_lower.starts_with(def::UUID_KEY) {
-                e.uuid = match Uuid::parse_str(&line[def::UUID_KEY.len()..]) {
+            if line_lower.starts_with(CFG.pass.user_key) {
+                e.username = Some(line[CFG.pass.user_key.len()..].to_string());
+            } else if line_lower.starts_with(CFG.pass.user_key_alt) {
+                e.username = Some(line[CFG.pass.user_key_alt.len()..].to_string());
+            } else if line_lower.starts_with(CFG.pass.path_key) {
+                e.path = Some(line[CFG.pass.path_key.len()..].to_string());
+            } else if line_lower.starts_with(CFG.pass.url_key) {
+                e.url = Some(line[CFG.pass.url_key.len()..].to_string());
+            } else if line_lower.starts_with(CFG.pass.uuid_key) {
+                e.uuid = match Uuid::parse_str(&line[CFG.pass.uuid_key.len()..]) {
                     Ok(id) => id,
                     Err(_) => Uuid::nil()
                 }
@@ -197,26 +198,26 @@ impl Entry {
         raw_content.push('\n');
         // push Username
         if let Some(ref username) = self.username {
-            raw_content.push_str(def::USER_KEY);
+            raw_content.push_str(CFG.pass.user_key);
             raw_content.push_str(username);
             raw_content.push('\n');
         }
         // push url
         if let Some(ref url) = self.url {
-            raw_content.push_str(def::URL_KEY);
+            raw_content.push_str(CFG.pass.url_key);
             raw_content.push_str(url);
             raw_content.push('\n');
         }
         // push path
         if let Some(ref path) = self.path {
-            raw_content.push_str(def::PATH_KEY);
+            raw_content.push_str(CFG.pass.path_key);
             raw_content.push_str(path);
             raw_content.push('\n');
         }
         // push all the content of self.raw
         raw_content.push_str(self.raw.as_str());
         //push the uuid last
-        raw_content.push_str(def::UUID_KEY);
+        raw_content.push_str(CFG.pass.uuid_key);
         raw_content.push_str(format!("{}", self.uuid).as_ref());
         raw_content.push('\n');
 
@@ -224,7 +225,7 @@ impl Entry {
         let mut p = Command::new("pass")
             .arg("insert")
             .arg("--multiline")
-            .arg(format!("{}/{}", def::UUID_FOLDER, self.uuid))
+            .arg(format!("{}/{}", CFG.main.uuid_folder, self.uuid))
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .spawn()?;
@@ -242,7 +243,7 @@ impl Entry {
 
         Command::new("pass")
             .arg("edit")
-            .arg(format!("{}/{}", def::UUID_FOLDER, self.uuid))
+            .arg(format!("{}/{}", CFG.main.uuid_folder, self.uuid))
             .spawn()?.wait()?;
 
         // update the own settings and check if the path is unchanged. If not, update the path

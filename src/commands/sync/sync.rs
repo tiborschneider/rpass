@@ -26,6 +26,7 @@ use unidiff::{self, PatchSet};
 use uuid::Uuid;
 
 use crate::def;
+use crate::config::CFG;
 use crate::pass::index;
 use crate::pass::entry::Entry;
 use crate::commands::sync::update_sync_commit_file;
@@ -49,7 +50,7 @@ pub fn sync(apply: bool) -> Result<(), Error> {
 
     // Step 1, copy all new master passwords over to the slave
     for new_file in master_patch.added_files() {
-        if !new_file.target_file.contains(def::UUID_FOLDER) { continue }
+        if !new_file.target_file.contains(CFG.main.uuid_folder) { continue }
         if !new_file.target_file.starts_with("b/") { continue }
         if !new_file.target_file.ends_with(".gpg") { continue }
         let uuid = uuid_from_diff_filename(&new_file.target_file)?;
@@ -64,14 +65,14 @@ pub fn sync(apply: bool) -> Result<(), Error> {
 
     // step 2: apply deleted entries from the master to the slave
     for old_file in master_patch.removed_files() {
-        if !old_file.source_file.contains(def::UUID_FOLDER) { continue }
+        if !old_file.source_file.contains(CFG.main.uuid_folder) { continue }
         if !old_file.source_file.starts_with("a/") { continue }
         if !old_file.source_file.ends_with(".gpg") { continue }
         let uuid = uuid_from_diff_filename(&old_file.source_file)?;
 
         // extract the path from the diff
-        let path = match old_file.into_iter().flatten().filter(|l| l.value.starts_with(def::PATH_KEY)).next() {
-            Some(l) => String::from(&l.value[def::PATH_KEY.len()..]),
+        let path = match old_file.into_iter().flatten().filter(|l| l.value.starts_with(CFG.pass.path_key)).next() {
+            Some(l) => String::from(&l.value[CFG.pass.path_key.len()..]),
             None => return Err(Error::new(ErrorKind::InvalidData, format!("Entry ({}) to delete did not contain a path key!", uuid)))
         };
 
@@ -85,17 +86,17 @@ pub fn sync(apply: bool) -> Result<(), Error> {
 
     // step 3: apply all changes of the master on the slave
     for mod_file in master_patch.modified_files() {
-        if !mod_file.target_file.contains(def::UUID_FOLDER) { continue }
+        if !mod_file.target_file.contains(CFG.main.uuid_folder) { continue }
         if !mod_file.target_file.starts_with("b/") { continue }
         if !mod_file.target_file.ends_with(".gpg") { continue }
-        if mod_file.target_file.contains(def::INDEX_FILE) { continue }
+        if mod_file.target_file.contains(CFG.main.index_file) { continue }
         let uuid = uuid_from_diff_filename(&mod_file.target_file)?;
         let path = index_path_map[&uuid];
 
         // Check wether the path line was changed
-        match mod_file.into_iter().flatten().filter(|l| l.line_type == "-" && l.value.starts_with(def::PATH_KEY)).next() {
+        match mod_file.into_iter().flatten().filter(|l| l.line_type == "-" && l.value.starts_with(CFG.pass.path_key)).next() {
             Some(l) => {
-                let old_path = &l.value[def::PATH_KEY.len()..];
+                let old_path = &l.value[CFG.pass.path_key.len()..];
                 println!("Rename entry [M -> S]: {} -> {}", old_path, path);
                 if apply {
                     rename_slave_entry(old_path, path)?;
@@ -142,7 +143,7 @@ pub fn sync(apply: bool) -> Result<(), Error> {
         if !new_file.target_file.starts_with("b/") { continue }
         if !new_file.target_file.ends_with(".gpg") { continue }
         let path = path_from_slave_diff_filename(&new_file.target_file);
-        let full_path = format!("{}/{}", def::SYNC_FOLDER, path);
+        let full_path = format!("{}/{}", CFG.main.sync_folder, path);
 
         println!("Add entry    [M <- S]: {}", path);
 
@@ -168,7 +169,7 @@ pub fn sync(apply: bool) -> Result<(), Error> {
         if !mod_file.target_file.starts_with("b/") { continue }
         if !mod_file.target_file.ends_with(".gpg") { continue }
         let path = path_from_slave_diff_filename(&mod_file.target_file);
-        let full_path = format!("{}/{}", def::SYNC_FOLDER, path);
+        let full_path = format!("{}/{}", CFG.main.sync_folder, path);
 
         println!("Modify entry [M <- S]: {}", path);
 
@@ -204,7 +205,7 @@ pub fn sync(apply: bool) -> Result<(), Error> {
         // change working directory to the sync folder
         let mut working_path = home_dir().unwrap();
         working_path.push(def::ROOT_FOLDER);
-        working_path.push(def::SYNC_FOLDER);
+        working_path.push(CFG.main.sync_folder);
 
         // add changes and fcommit
         Command::new("git")
@@ -231,7 +232,7 @@ pub fn sync(apply: bool) -> Result<(), Error> {
 }
 
 fn uuid_from_diff_filename(diff_filename: &String) -> Result<Uuid, Error> {
-    let uuid_start = "b//".len() + def::UUID_FOLDER.len();
+    let uuid_start = "b//".len() + CFG.main.uuid_folder.len();
     let uuid_end = diff_filename.len() - ".gpg".len();
     let uuid_slice = &diff_filename[uuid_start..uuid_end];
     match Uuid::parse_str(uuid_slice) {
@@ -250,10 +251,10 @@ fn move_entry_to_slave(uuid: Uuid, path: &str, overwrite: bool) -> Result<(), Er
     let mut working_path = home_dir().unwrap();
     working_path.push(def::ROOT_FOLDER);
     let mut src_path = working_path.clone();
-    src_path.push(def::UUID_FOLDER);
+    src_path.push(CFG.main.uuid_folder);
     src_path.push(format!("{}.gpg", uuid));
     let mut dst_path = working_path;
-    dst_path.push(def::SYNC_FOLDER);
+    dst_path.push(CFG.main.sync_folder);
     dst_path.push(format!("{}.gpg", path));
 
     let parent = dst_path.parent().unwrap();
@@ -279,7 +280,7 @@ fn move_entry_to_slave(uuid: Uuid, path: &str, overwrite: bool) -> Result<(), Er
 fn remove_slave_entry(path: &str) -> Result<(), Error> {
     let mut dst_path = home_dir().unwrap();
     dst_path.push(def::ROOT_FOLDER);
-    dst_path.push(def::SYNC_FOLDER);
+    dst_path.push(CFG.main.sync_folder);
     dst_path.push(format!("{}.gpg", path));
 
     // remove the file
@@ -294,7 +295,7 @@ fn remove_slave_entry(path: &str) -> Result<(), Error> {
     // recursively walk back directories if the current path is empty
     loop {
         dst_path.pop();
-        if dst_path.file_name().unwrap() == def::SYNC_FOLDER { break }
+        if dst_path.file_name().unwrap() == CFG.main.sync_folder { break }
         match fs::remove_dir(&dst_path) {
             Ok(()) => {},
             Err(e) => match e.kind() {
@@ -310,7 +311,7 @@ fn remove_slave_entry(path: &str) -> Result<(), Error> {
 fn rename_slave_entry(old_path: &str, new_path: &str) -> Result<(), Error> {
     let mut working_path = home_dir().unwrap();
     working_path.push(def::ROOT_FOLDER);
-    working_path.push(def::SYNC_FOLDER);
+    working_path.push(CFG.main.sync_folder);
     let mut src_path = working_path.clone();
     src_path.push(format!("{}.gpg", old_path));
     let mut dst_path = working_path;
@@ -347,7 +348,7 @@ fn parse_diffs() -> Result<(PatchSet, PatchSet), Error> {
         .output()?
         .stdout;
 
-    working_path.push(def::SYNC_FOLDER);
+    working_path.push(CFG.main.sync_folder);
 
     // get slave commit
     let slave_patch = Command::new("git")
@@ -378,8 +379,8 @@ fn get_last_sync_commits() -> Result<(String, String), Error> {
 
     let mut sync_commit_file = home_dir().unwrap();
     sync_commit_file.push(def::ROOT_FOLDER);
-    sync_commit_file.push(def::SYNC_FOLDER);
-    sync_commit_file.push(def::SYNC_COMMIT_FILE);
+    sync_commit_file.push(CFG.main.sync_folder);
+    sync_commit_file.push(CFG.main.sync_commit_file);
 
     // read the file
     let file = File::open(sync_commit_file)?;
