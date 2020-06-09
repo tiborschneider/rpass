@@ -56,7 +56,7 @@ fn edit_interactive(path: Option<&str>, id: Option<&str>,) -> Result<(), Error> 
             .show(lines.clone()) {
             Ok(s) => {
                 match get_menu_action(s) {
-                    EditMenuAction::EditPath     => {
+                    EditMenuAction::EditPath => {
                         match mv(None, Some(format!("{}", entry_id).as_str()), None, true) {
                             Ok(()) => {
                                 entry = Entry::get(entry_id)?;
@@ -65,7 +65,7 @@ fn edit_interactive(path: Option<&str>, id: Option<&str>,) -> Result<(), Error> 
                             Err(e) => notify_error(e)
                         }
                     },
-                    EditMenuAction::EditUuid     => {
+                    EditMenuAction::EditUuid => {
                         Notification::new()
                             .summary("UUID cannot be modified!")
                             .urgency(NotificationUrgency::Low)
@@ -94,7 +94,7 @@ fn edit_interactive(path: Option<&str>, id: Option<&str>,) -> Result<(), Error> 
                             Err(e) => notify_error(e)
                         }
                     },
-                    EditMenuAction::EditUrl      => {
+                    EditMenuAction::EditUrl => {
                         match question_rofi("URL") {
                             Ok(new_url) => entry.change_url(new_url)?,
                             Err(e) => notify_error(e)
@@ -122,14 +122,14 @@ fn edit_interactive(path: Option<&str>, id: Option<&str>,) -> Result<(), Error> 
                             Err(e) => notify_error(e)
                         }
                     }
-                    EditMenuAction::Delete       => {
+                    EditMenuAction::Delete => {
                         match delete(None, Some(format!("{}", entry_id).as_str()), false, true) {
                             Ok(()) => break,
                             Err(e) => notify_error(e)
                         }
                     }
-                    EditMenuAction::DoNothing    => {}
-                    EditMenuAction::Exit         => break
+                    EditMenuAction::DoNothing => {}
+                    EditMenuAction::Exit => break
                 }
             }
             Err(_) => break
