@@ -31,12 +31,12 @@ pub fn insert(path: Option<&str>,
     let path = match path {
         Some(s) => s.to_string(),
         None => {
-            match match use_rofi {
+            match use_rofi {
                 true => utils::gen_path_interactive()?,
-                false => utils::question("path", use_rofi)?
-            } {
-                Some(s) => s,
-                None => return Err(Error::InvalidInput("Entry path is required"))
+                false => match utils::question("path", use_rofi)? {
+                    Some(s) => s,
+                    None => return Err(Error::InvalidInput("Path is required"))
+                }
             }
         }
     };

@@ -20,9 +20,7 @@ dirs = "2.0.2"
 unidiff = "0.3"
 ctrlc = "3.1.4"
 interactor = "0.1.1"
-rustofi = "0.2"
-pango = { path = "pango" }
-rofi = { path = "rofi" }
+rofi = "0.2.2"
 toml = "0.5"
 serde = { version = "1.0", features = [ "derive" ] }
 lazy_static = "1.4"

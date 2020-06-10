@@ -15,16 +15,11 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
 use crate::errors::Result;
-
-use rustofi::window::{Window, Dimensions};
-
+use crate::def;
 use crate::commands::{insert, get, edit};
 use crate::commands::utils::{confirm, notify_error};
 
-const GET_NAME: &str = "<span fgcolor='#7EAFE9'>Get Entry</span>";
-const NEW_NAME: &str = "<span fgcolor='#7EAFE9'>New Entry</span>";
-const EDIT_NAME: &str = "<span fgcolor='#7EAFE9'>Edit Entry</span>";
-const EXIT_NAME: &str = "<span size='small' fgcolor='#FFFFFF80'>Exit</span>";
+use rofi::{Rofi, Format, Width};
 
 #[derive(Debug)]
 enum Action {
@@ -48,21 +43,22 @@ pub fn rofi_app() -> Result<()> {
 }
 
 fn main_menu() -> Action {
-    let options = vec![GET_NAME.to_string(),
-                       NEW_NAME.to_string(),
-                       EDIT_NAME.to_string(),
-                       EXIT_NAME.to_string()];
-    match Window::new("RPASS - Main Menu")
-        .dimensions(Dimensions{width: 400, height: 400, lines: 1, columns: 1})
-        .lines(options.len() as i32)
-        .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
-        .format('s')
-        .show(options) {
+    let options = vec![def::format_big_button(def::DISPLAY_BTN_MM_GET),
+                       def::format_big_button(def::DISPLAY_BTN_MM_NEW),
+                       def::format_big_button(def::DISPLAY_BTN_MM_EDIT),
+                       def::format_small(def::DISPLAY_BTN_MM_EXIT)];
+    match Rofi::new(&options)
+        .prompt("RPASS - Main Menu")
+        .pango()
+        .width(Width::Pixels(350)).unwrap()
+        .return_format(Format::StrippedText)
+        .run(){
         Ok(s) => {
-            match s.as_ref() {
-                GET_NAME => Action::Get,
-                NEW_NAME => Action::New,
-                EDIT_NAME => Action::Edit,
+            println!("{}", s);
+            match s.as_str() {
+                def::DISPLAY_BTN_MM_GET => Action::Get,
+                def::DISPLAY_BTN_MM_NEW => Action::New,
+                def::DISPLAY_BTN_MM_EDIT => Action::Edit,
                 _ => Action::Exit,
             }
         },

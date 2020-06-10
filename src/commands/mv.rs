@@ -31,13 +31,12 @@ pub fn mv(path: Option<&str>,
     let dst_string = match dst {
         Some(s) => s.to_string(),
         None => {
-            let result = match use_rofi {
+            match use_rofi {
                 true => gen_path_interactive()?,
-                false => question("path", use_rofi)?
-            };
-            match result {
-                Some(s) => s,
-                None => return Err(Error::InvalidInput("New path is required!"))
+                false => match question("path", use_rofi)? {
+                    Some(s) => s,
+                    None => return Err(Error::InvalidInput("New path is required!"))
+                }
             }
         }
     };

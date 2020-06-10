@@ -113,8 +113,8 @@ fn check_fix_entry(entry_id: Uuid, path_lookup: &HashMap<Uuid, &str>) -> Result<
                     println!("\nEntry is not present in the index and has no path information!\n{}", entry);
                     if confirm("Create index and move entry to new location?", false) {
                         match gen_path_interactive() {
-                            Ok(Some(path)) => { println!("Move entry to {}", path);
-                                                entry.change_path(path)?; },
+                            Ok(path) => { println!("Move entry to {}", path);
+                                          entry.change_path(path)?; },
                             _ => println!("Skipped!")
                         }
                     }

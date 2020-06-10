@@ -15,8 +15,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
 
-use rustofi::window::{Window, Dimensions};
 use notify_rust::{Notification, NotificationUrgency, Timeout};
+use rofi::{Rofi, Format};
 
 use crate::errors::Result;
 use crate::commands::utils::{choose_entry, question_rofi, notify_error, confirm, notify_action};
@@ -43,17 +43,16 @@ fn edit_interactive(path: Option<&str>, id: Option<&str>,) -> Result<()> {
     let entry_id = entry.uuid.clone();
 
     loop {
-        let mut lines: Vec<String> = entry.get_string().lines().map(|x| x.to_string()).collect();
-        lines.push(def::PANGO_NEW_LINE_NAME.to_string());
+        let mut lines: Vec<String> = entry.get_rofi_lines();
+        lines.push(def::format_button(def::DISPLAY_BTN_NEW_RAW));
         lines.push(String::new());
-        lines.push(def::PANGO_DELETE_NAME.to_string());
-        lines.push(def::PANGO_MAIN_MENU_NAME.to_string());
-        match Window::new("Edit Entry")
-            .dimensions(Dimensions{width: 1000, height: 1000, lines: 3, columns: 1})
-            .lines(lines.len() as i32)
-            .format('s')
-            .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
-            .show(lines.clone()) {
+        lines.push(def::format_button(def::DISPLAY_BTN_DELETE));
+        lines.push(def::format_button(def::DISPLAY_BTN_MAIN_MENU));
+        match Rofi::new(&lines)
+            .prompt("Edit Entry")
+            .pango()
+            .return_format(Format::StrippedText)
+            .run() {
             Ok(s) => {
                 match get_menu_action(s) {
                     EditMenuAction::EditPath => {
@@ -153,15 +152,15 @@ enum EditMenuAction {
 }
 
 fn get_menu_action(s: String) -> EditMenuAction {
-    if s.starts_with(def::PANGO_PATH_NAME) { EditMenuAction::EditPath }
-    else if s.starts_with(def::PANGO_UUID_NAME) { EditMenuAction::EditUuid }
-    else if s.starts_with(def::PANGO_USERNAME_NAME) { EditMenuAction::EditUsername }
-    else if s.starts_with(def::PANGO_PASSWORD_NAME) { EditMenuAction::EditPassword }
-    else if s.starts_with(def::PANGO_URL_NAME) { EditMenuAction::EditUrl }
-    else if s == def::PANGO_NEW_LINE_NAME { EditMenuAction::AddOther }
-    else if s == def::PANGO_DELETE_NAME { EditMenuAction::Delete }
-    else if s == def::PANGO_RAW_NAME { EditMenuAction::DoNothing }
-    else if s.len() > 0 && s != def::PANGO_MAIN_MENU_NAME { EditMenuAction::EditOther(s.clone()) }
+    if s.starts_with(def::DISPLAY_PATH) { EditMenuAction::EditPath }
+    else if s.starts_with(def::DISPLAY_UUID) { EditMenuAction::EditUuid }
+    else if s.starts_with(def::DISPLAY_USER) { EditMenuAction::EditUsername }
+    else if s.starts_with(def::DISPLAY_PASS) { EditMenuAction::EditPassword }
+    else if s.starts_with(def::DISPLAY_URL) { EditMenuAction::EditUrl }
+    else if s == def::DISPLAY_BTN_NEW_RAW { EditMenuAction::AddOther }
+    else if s == def::DISPLAY_BTN_DELETE { EditMenuAction::Delete }
+    else if s == def::DISPLAY_RAW { EditMenuAction::DoNothing }
+    else if s.len() > 0 && s != def::DISPLAY_BTN_MAIN_MENU { EditMenuAction::EditOther(s.clone()) }
     else { EditMenuAction::Exit }
 }
 

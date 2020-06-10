@@ -338,51 +338,49 @@ impl Entry {
 
     }
 
-    pub fn get_string(&self) -> String {
+    pub fn get_rofi_lines(&self) -> Vec<String> {
 
-        let mut s = String::new();
+        let mut result: Vec<String> = Vec::with_capacity(5);
 
-        s.push_str(def::PANGO_PATH_NAME);
-        s.push_str(escape_pango(self.path.clone().unwrap()).as_str());
-        s.push('\n');
+        result.push(format!("{}{}",
+                            def::format_small(def::DISPLAY_PATH),
+                            escape_pango(self.path.clone().unwrap())));
 
-        s.push_str(def::PANGO_UUID_NAME);
-        s.push_str(format!("{}", self.uuid).as_ref());
-        s.push('\n');
+        result.push(format!("{}{}",
+                            def::format_small(def::DISPLAY_UUID),
+                            self.uuid));
         
-        s.push_str(def::PANGO_USERNAME_NAME);
-        match self.username.clone() {
-            Some(username) => s.push_str(escape_pango(username).as_ref()),
-            None => s.push_str(def::PANGO_EMPTY_NAME)
-        };
-        s.push('\n');
+        result.push(format!("{}{}",
+                            def::format_small(def::DISPLAY_USER),
+                            match self.username.as_ref() {
+                                Some(user) => escape_pango(user.clone()),
+                                None => def::format_small(def::DISPLAY_EMPTY)
+                            }));
 
         let hidden_pw: String = match self.hidden {
             true => iter::repeat("*").take(self.password.len()).collect(),
             false => escape_pango(self.password.clone())
         };
-        s.push_str(def::PANGO_PASSWORD_NAME);
-        s.push_str(hidden_pw.as_ref());
-        s.push('\n');
+        result.push(format!("{}{}",
+                            def::format_small(def::DISPLAY_PASS),
+                            hidden_pw));
 
-        s.push_str(def::PANGO_URL_NAME);
-        match self.url.clone() {
-            Some(url) => s.push_str(escape_pango(url).as_ref()),
-            None => s.push_str(def::PANGO_EMPTY_NAME)
-        };
-        s.push('\n');
+        result.push(format!("{}{}",
+                            def::format_small(def::DISPLAY_URL),
+                            match self.url.as_ref() {
+                                Some(url) => escape_pango(url.clone()),
+                                None => def::format_small(def::DISPLAY_EMPTY)
+                            }));
 
         let mut raw_str_printed = false;
         for line in self.raw.lines() {
             if !raw_str_printed {
                 raw_str_printed = true;
-                s.push_str(def::PANGO_RAW_NAME);
-                s.push('\n');
+                result.push(format!("{}", def::format_small(def::DISPLAY_RAW).as_str()));
             }
-            s.push_str(escape_pango(line.to_string()).as_ref());
-            s.push('\n');
+            result.push(format!("{}", escape_pango(line.to_string())));
         }
-        s
+        result
     }
 
 }

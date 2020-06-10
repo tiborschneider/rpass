@@ -17,13 +17,10 @@
 use std::io;
 use std::io::prelude::*;
 use std::clone::Clone;
-use std::fmt::Display;
 use std::process::Command;
 use std::{thread, time};
 
-use rustofi::components::{ActionList, ItemList, EntryBox};
-use rustofi::window::{Dimensions, Window};
-use rustofi::RustofiResult;
+use rofi::{Rofi, Format, Width};
 use uuid::Uuid;
 use text_io::read;
 use clipboard::{ClipboardProvider, ClipboardContext};
@@ -34,68 +31,6 @@ use crate::errors::{Error, Result};
 use crate::pass::index::{get_index, to_graph, to_hashmap_reverse};
 use crate::pass::entry::Entry;
 use crate::def;
-
-pub fn rofi_display_item<'a, T: Display + Clone>(rofi: &mut ItemList<'a, T>, prompt: String, lines: usize) -> RustofiResult {
-    let extra = vec!["".to_string(), def::PANGO_CANCEL_NAME.to_string()];
-    let mut display_options: Vec<String> = rofi.items.iter().map(|s| s.clone().to_string()).collect();
-    let num_lines: i32 = if lines > display_options.len() {display_options.len() as i32} else {lines as i32};
-    display_options = display_options.into_iter().chain(extra.clone()).collect();
-    let response = rofi
-        .window
-        .clone()
-        .lines(num_lines)
-        .prompt(prompt)
-        .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
-        .show(display_options.clone());
-    match response {
-        Ok(input) => {
-            if input == def::PANGO_CANCEL_NAME || input == "" {
-                RustofiResult::Cancel
-            } else if input == " " {
-                RustofiResult::Blank
-            } else {
-                for item in rofi.items.clone() {
-                    if input == item.to_string() {
-                        return (rofi.item_callback)(&item);
-                    }
-                }
-                RustofiResult::Selection(input)
-            }
-        }
-        Err(_) => RustofiResult::Error
-    }
-}
-
-pub fn rofi_display_action<'a, T: Display + Clone>(rofi: &mut ActionList<'a, T>, prompt: String, lines: usize) -> RustofiResult {
-    let extra = vec!["".to_string(), def::PANGO_CANCEL_NAME.to_string()];
-    let mut display_options: Vec<String> = rofi.actions.iter().map(|s| s.to_string()).collect();
-    let num_lines: i32 = if lines > display_options.len() {display_options.len() as i32} else {lines as i32};
-    display_options = display_options.into_iter().chain(extra.clone()).collect();
-    let response = rofi
-        .window
-        .clone()
-        .lines(num_lines)
-        .prompt(prompt)
-        .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
-        .show(display_options.clone());
-    match response {
-        Ok(input) => {
-            if input == def::PANGO_CANCEL_NAME || input == "" {
-                RustofiResult::Cancel
-            } else if input == " " {
-                RustofiResult::Blank
-            } else {
-                for action in rofi.actions.clone() {
-                    if input == action.to_string() {
-                        return (rofi.action_callback)(&rofi.item, &action.to_string());
-                    }
-                }
-                RustofiResult::Action(input)
-            }
-        }
-        Err(_) => RustofiResult::Error
-    }
-}
 
 pub fn choose_entry(path: Option<&str>, id: Option<&str>, use_rofi: bool) -> Result<Entry> {
     match (path, id) {
@@ -143,45 +78,35 @@ fn choose_entry_fzf() -> Result<Entry> {
 }
 
 fn choose_entry_rofi() -> Result<Entry> {
+    // prepare the index list
     let index_list = get_index()?;
     let index_list_clone = index_list.clone();
     let uuid_lookup = to_hashmap_reverse(&index_list_clone);
     let mut path_list: Vec<String> = index_list.into_iter().map(|x| x.1).collect();
     path_list.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
-    let mut rofi = ItemList::new(path_list, Box::new(identity_callback));
-    rofi.window = rofi.window.dimensions(Dimensions {width: 1000, height: 800, lines: 10, columns: 1});
-    match rofi_display_item(&mut rofi, "Select an entry".to_string(), 10) {
-        RustofiResult::Selection(s) => {
-            let entry_id = match uuid_lookup.get(s.as_str()) {
-                Some(id) => id,
-                None => return Err(Error::UnknownPath(s))
-            };
-            Entry::get(entry_id.clone())
-        },
-        RustofiResult::Blank        => Err(Error::Interrupted),
-        RustofiResult::Cancel       => Err(Error::Interrupted),
-        RustofiResult::Exit         => Err(Error::Interrupted),
-        _                           => Err(Error::Other("Rofi failed".to_string()))
-    }
+    let max_len = path_list.iter().map(|s| s.len()).fold(30, |cur, x| if x > cur {x} else {cur});
+
+    // show with rofi
+    let selection = Rofi::new(&path_list)
+        .prompt("Select an entry")
+        .pango()
+        .lines(15)
+        .width(Width::Characters(max_len))?
+        .return_format(Format::StrippedText)
+        .run()?;
+
+    let entry_id = match uuid_lookup.get(selection.as_str()) {
+        Some(id) => id,
+        None => return Err(Error::UnknownPath(selection))
+    };
+    Entry::get(entry_id.clone())
 }
 
-pub fn identity_callback(name: &String) -> RustofiResult {
-    RustofiResult::Selection(name.clone())
+pub fn gen_path_interactive() -> Result<String> {
+    gen_path_recursive("".to_string())
 }
 
-pub fn gen_path_interactive() -> Result<Option<String>> {
-    match gen_path_recursive("".to_string()) {
-        RustofiResult::Selection(s) => Ok(Some(s)),
-        RustofiResult::Action(_)    => Err(Error::Other("Rofi returned an action instead of a selection!".to_string())),
-        RustofiResult::Success      => Err(Error::Other("Success returned without a string!".to_string())),
-        RustofiResult::Blank        => Ok(None),
-        RustofiResult::Error        => Err(Error::Other("Rofi returned unexpected error".to_string())),
-        RustofiResult::Cancel       => Ok(None),
-        RustofiResult::Exit         => Err(Error::Interrupted),
-    }
-}
-
-pub fn gen_path_recursive(cur_path: String) -> RustofiResult {
+pub fn gen_path_recursive(cur_path: String) -> Result<String> {
 
     let mut index_list = get_index().expect("Cannot get index file");
     index_list.sort_by(|a, b| b.1.to_lowercase().cmp(&a.1.to_lowercase()));
@@ -200,7 +125,7 @@ pub fn gen_path_recursive(cur_path: String) -> RustofiResult {
     }
 
     let mut next_nodes: Vec<String> = Vec::new();
-    next_nodes.push(def::PANGO_NEW_PATH_NAME.to_string());
+    next_nodes.push(def::format_button(def::DISPLAY_BTN_NEW_PATH));
     let mut walker = g.neighbors(last_node).detach();
     while let Some(child) = walker.next_node(&g) {
         if g.neighbors(child).count() >= 1 {
@@ -209,43 +134,34 @@ pub fn gen_path_recursive(cur_path: String) -> RustofiResult {
     }
 
     if next_nodes.len() > 1 {
-        let mut rofi = ActionList::new(cur_path.clone(), next_nodes, Box::new(gen_path_callback));
-        rofi_display_action(&mut rofi, format!("Choose an entry: {}/", cur_path), 10)
+        let mut idx = Rofi::new(&next_nodes)
+            .pango()
+            .lines(15)
+            .prompt(format!("Choose an entry: {}/", cur_path))
+            .run_index()?;
+        if idx == 0 {
+            // Create new path
+            ask_for_path(&cur_path)
+        } else {
+            idx = idx - 1;
+            gen_path_recursive(format!("{}{}", cur_path, next_nodes[idx]))
+        }
     } else {
         ask_for_path(&cur_path)
     }
 }
 
-fn gen_path_callback(path: &String, option: &String) -> RustofiResult {
-    let mut cur_path = path.clone();
-    if cur_path.len() > 0 {
-        cur_path.push_str("/");
-    }
-    match option.as_str() {
-        def::PANGO_NEW_PATH_NAME => ask_for_path(&cur_path),
-        new_path => gen_path_recursive(format!("{}{}", cur_path, new_path))
-    }
-}
-
-fn ask_for_path(path: &String) -> RustofiResult {
+fn ask_for_path(path: &String) -> Result<String> {
     let mut cur_path = path.clone();
     if cur_path.len() > 0 && !cur_path.ends_with("/") {
         cur_path.push_str("/");
     }
-    let result = EntryBox::create_window()
+    let empty_options: Vec<String> = Vec::new();
+    Ok(Rofi::new(&empty_options)
         .prompt(format!("Enter path: {}", cur_path))
-        .dimensions(Dimensions{width:1100, height:100, lines:1, columns:1})
-        .show(vec!["".to_string()]);
-    match result {
-        Ok(input) => {
-            if input == "" {
-                RustofiResult::Cancel
-            } else {
-                RustofiResult::Selection(format!("{}{}", cur_path, input))
-            }
-        }
-        Err(_) => RustofiResult::Error
-    }
+        .return_format(Format::UserInput)
+        .run()?)
+    
 }
 
 pub fn confirm<S: AsRef<str>>(q: S, use_rofi: bool) -> bool {
@@ -264,7 +180,7 @@ fn confirm_stdio<S: AsRef<str>>(q: S) -> bool {
 
 fn confirm_rofi<S: AsRef<str>>(q: S) -> bool {
     let options = vec!["No".to_string(), "Yes".to_string()];
-    match Window::new(q.as_ref()).format('s').add_args(vec!("-i".to_string())).show(options) {
+    match Rofi::new(&options).prompt(q.as_ref()).run() {
         Ok(s) => s == "Yes",
         Err(_) => false
     }
@@ -289,24 +205,18 @@ fn question_stdio<S: AsRef<str>>(q: S) -> Result<Option<String>> {
 }
 
 pub fn question_rofi<S: AsRef<str>>(q: S) -> Result<Option<String>> {
-    let result = EntryBox::create_window()
-                .prompt(format!("{}", q.as_ref()))
-                .lines(2)
-                .dimensions(Dimensions{width:1100, height:100, lines:2, columns:1})
-                .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
-                .show(vec![def::PANGO_EMPTY_NAME.to_string(), def::PANGO_CANCEL_NAME.to_string()]);
+    let options = vec![def::format_small(def::DISPLAY_EMPTY), def::format_small(def::DISPLAY_BTN_CANCEL)];
+    let input = Rofi::new(&options)
+        .prompt(format!("{}", q.as_ref()))
+        .pango()
+        .run()?;
 
-    match result {
-        Ok(input) => {
-            if input == "" || input == def::PANGO_CANCEL_NAME {
-                Err(Error::Interrupted)
-            } else if input == def::PANGO_EMPTY_NAME {
-                Ok(None)
-            } else {
-                Ok(Some(input))
-            }
-        }
-        Err(_) => Err(Error::Interrupted)
+    if input == "" || input == options[1] {
+        Err(Error::Interrupted)
+    } else if input == options[0] {
+        Ok(None)
+    } else {
+        Ok(Some(input))
     }
 }
 

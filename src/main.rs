@@ -21,9 +21,9 @@ use clap::{Arg, App, SubCommand};
 mod pass;
 mod commands;
 mod rofi_app;
-mod def;
-mod config;
 mod errors;
+mod config;
+mod def;
 
 use errors::Error;
 

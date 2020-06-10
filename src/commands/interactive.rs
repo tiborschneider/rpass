@@ -21,8 +21,8 @@ use std::path::PathBuf;
 use std::fs::{File, remove_file, OpenOptions};
 
 use uuid::Uuid;
-use rustofi::window::{Dimensions, Window};
 use dirs::home_dir;
+use rofi::{Rofi, Format, Width};
 
 use crate::errors::{Error, Result};
 use crate::pass::entry::Entry;
@@ -40,16 +40,17 @@ pub fn interactive() -> Result<()> {
         None => {
             let entry = utils::choose_entry(None, None, true)?;
 
-            let lines: Vec<String> = vec![def::PANGO_COPY_USERNAME_NAME.to_string(),
-                                          def::PANGO_COPY_PASSWORD_NAME.to_string(),
-                                          def::PANGO_COPY_BOTH_NAME.to_string(),
-                                          def::PANGO_EXIT_NAME.to_string()];
-            match Window::new("What to copy?")
-                .dimensions(Dimensions{width: 400, height: 1000, lines: 4, columns: 1})
-                .lines(lines.len() as i32)
-                .format('s')
-                .add_args(vec!("-i".to_string(), "-markup-rows".to_string()))
-                .show(lines.clone()) {
+            let lines: Vec<String> = vec![def::format_button(def::DISPLAY_BTN_CPY_PASSWORD),
+                                          def::format_button(def::DISPLAY_BTN_CPY_USERNAME),
+                                          def::format_button(def::DISPLAY_BTN_CPY_BOTH),
+                                          def::format_small(def::DISPLAY_BTN_EXIT)];
+
+            match Rofi::new(&lines)
+                .prompt("What to copy?")
+                .pango()
+                .width(Width::Pixels(400))?
+                .return_format(Format::StrippedText)
+                .run() {
                 Ok(s)  => action_copy_entry(&entry, get_copy_action(s)),
                 Err(_) => Err(Error::Other("Rofi exited unsuccessfully".to_string()))
             }
@@ -76,9 +77,9 @@ impl fmt::Display for CopyAction {
 }
 
 fn get_copy_action(s: String) -> CopyAction {
-    if s == def::PANGO_COPY_USERNAME_NAME { CopyAction::Username }
-    else if s == def::PANGO_COPY_PASSWORD_NAME { CopyAction::Password }
-    else if s == def::PANGO_COPY_BOTH_NAME { CopyAction::Both }
+    if s == def::DISPLAY_BTN_CPY_USERNAME { CopyAction::Username }
+    else if s == def::DISPLAY_BTN_CPY_PASSWORD { CopyAction::Password }
+    else if s == def::DISPLAY_BTN_CPY_BOTH { CopyAction::Both }
     else { CopyAction::Exit }
 }
 
