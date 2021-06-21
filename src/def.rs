@@ -15,10 +15,10 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
 use crate::config::CFG;
-use rofi::pango::{Pango, FontSize};
 use lazy_static::lazy_static;
+use rofi::pango::{FontSize, Pango};
 
-lazy_static!{
+lazy_static! {
     static ref SMALL_PANGO: Pango<'static> = {
         let mut p = Pango::with_capacity("", 2);
         p.size(FontSize::Small);
@@ -42,12 +42,14 @@ pub const ROOT_FOLDER: &str = ".password-store";
 pub const ENTRY_EXTENSION: &str = "gpg";
 pub const GIT_FOLDER: &str = ".git";
 
-pub const DISPLAY_PATH: &str = "    path  ";
-pub const DISPLAY_UUID: &str = "    uuid  ";
-pub const DISPLAY_USER: &str = "username  ";
-pub const DISPLAY_PASS: &str = "password  ";
-pub const DISPLAY_URL: &str  = "     url  ";
-pub const DISPLAY_RAW: &str  = "raw data  ";
+pub const DISPLAY_PATH: &str = "path:   ";
+pub const DISPLAY_UUID: &str = "uuid:   ";
+pub const DISPLAY_USER: &str = "user:   ";
+pub const DISPLAY_PASS: &str = "pass:   ";
+pub const DISPLAY_URL: &str = "url:   ";
+pub const DISPLAY_RAW: &str = "raw data ";
+
+pub const DISPLAY_RAW_SEP: &str = ":   ";
 
 pub const DISPLAY_EMPTY: &str = "empty";
 

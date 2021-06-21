@@ -14,20 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use crate::errors::Result;
-use crate::commands::utils::{choose_entry, copy_to_clipboard};
 use crate::commands::edit;
-use crate::pass::entry::Entry;
+use crate::commands::utils::{choose_entry, copy_to_clipboard};
 use crate::config::CFG;
 use crate::def;
+use crate::errors::Result;
+use crate::pass::entry::Entry;
 
-use rofi::{Rofi, Format};
+use rofi::{Format, Rofi};
 
-pub fn get(path: Option<&str>,
-           id: Option<&str>,
-           use_rofi: bool,
-           only_password: bool) -> Result<()> {
-
+pub fn get(
+    path: Option<&str>,
+    id: Option<&str>,
+    use_rofi: bool,
+    only_password: bool,
+) -> Result<()> {
     let mut entry = choose_entry(path, id, use_rofi)?;
     if use_rofi {
         get_rofi_menu(&mut entry)
@@ -39,7 +40,6 @@ pub fn get(path: Option<&str>,
         println!("{:?}", entry);
         Ok(())
     }
-
 }
 
 fn get_rofi_menu(entry: &mut Entry) -> Result<()> {
@@ -59,21 +59,36 @@ fn get_rofi_menu(entry: &mut Entry) -> Result<()> {
             .prompt("Entry")
             .return_format(Format::StrippedText)
             .theme(CFG.theme.theme_name)
-            .run() {
+            .run()
+        {
             Ok(s) => match get_menu_action(s) {
-                GetMenuAction::CopyPath     => copy_to_clipboard(entry.path.clone().unwrap(), "path", Some(5000))?,
-                GetMenuAction::CopyUuid     => copy_to_clipboard(format!("{}", entry.uuid), "UUID", Some(5000))?,
-                GetMenuAction::CopyUsername => copy_to_clipboard(entry.username.clone().unwrap(), "Username", Some(5000))?,
-                GetMenuAction::CopyPassword => copy_to_clipboard(entry.password.clone(), "Password", Some(5000))?,
-                GetMenuAction::CopyUrl      => copy_to_clipboard(entry.url.clone().unwrap(), "URL", Some(5000))?,
-                GetMenuAction::CopyOther(s) => copy_to_clipboard(s, "Custom entry", Some(5000))?,
+                GetMenuAction::CopyPath => {
+                    copy_to_clipboard(entry.path.clone().unwrap(), "path", Some(5000))?
+                }
+                GetMenuAction::CopyUuid => {
+                    copy_to_clipboard(format!("{}", entry.uuid), "UUID", Some(5000))?
+                }
+                GetMenuAction::CopyUsername => {
+                    copy_to_clipboard(entry.username.clone().unwrap(), "Username", Some(5000))?
+                }
+                GetMenuAction::CopyPassword => {
+                    copy_to_clipboard(entry.password.clone(), "Password", Some(5000))?
+                }
+                GetMenuAction::CopyUrl => {
+                    copy_to_clipboard(entry.url.clone().unwrap(), "URL", Some(5000))?
+                }
+                GetMenuAction::CopyOther(s) => {
+                    copy_to_clipboard(prepare_raw_line(&s).to_string(), "Custom entry", Some(5000))?
+                }
                 GetMenuAction::ShowPassword => entry.hidden = false,
                 GetMenuAction::HidePassword => entry.hidden = true,
-                GetMenuAction::EditEntry    => { edit(None, Some(format!("{}", entry.uuid).as_str()), true)?;
-                                                 break; },
-                GetMenuAction::Exit         => break
-            }
-            Err(_) => break
+                GetMenuAction::EditEntry => {
+                    edit(None, Some(format!("{}", entry.uuid).as_str()), true)?;
+                    break;
+                }
+                GetMenuAction::Exit => break,
+            },
+            Err(_) => break,
         }
     }
     Ok(())
@@ -89,18 +104,37 @@ enum GetMenuAction {
     ShowPassword,
     HidePassword,
     EditEntry,
-    Exit
+    Exit,
 }
 
 fn get_menu_action(s: String) -> GetMenuAction {
-    if s == def::DISPLAY_BTN_SHOW_PWD { GetMenuAction::ShowPassword }
-    else if s == def::DISPLAY_BTN_HIDE_PWD { GetMenuAction::HidePassword }
-    else if s == def::DISPLAY_BTN_EDIT_ENTRY { GetMenuAction::EditEntry }
-    else if s.starts_with(def::DISPLAY_PATH) { GetMenuAction::CopyPath }
-    else if s.starts_with(def::DISPLAY_UUID) { GetMenuAction::CopyUuid }
-    else if s.starts_with(def::DISPLAY_USER) { GetMenuAction::CopyUsername }
-    else if s.starts_with(def::DISPLAY_PASS) { GetMenuAction::CopyPassword }
-    else if s.starts_with(def::DISPLAY_URL) { GetMenuAction::CopyUrl }
-    else if s.len() > 0 && s != def::DISPLAY_BTN_MAIN_MENU {GetMenuAction::CopyOther(s.clone()) }
-    else { GetMenuAction::Exit }
+    if s == def::DISPLAY_BTN_SHOW_PWD {
+        GetMenuAction::ShowPassword
+    } else if s == def::DISPLAY_BTN_HIDE_PWD {
+        GetMenuAction::HidePassword
+    } else if s == def::DISPLAY_BTN_EDIT_ENTRY {
+        GetMenuAction::EditEntry
+    } else if s.starts_with(def::DISPLAY_PATH) {
+        GetMenuAction::CopyPath
+    } else if s.starts_with(def::DISPLAY_UUID) {
+        GetMenuAction::CopyUuid
+    } else if s.starts_with(def::DISPLAY_USER) {
+        GetMenuAction::CopyUsername
+    } else if s.starts_with(def::DISPLAY_PASS) {
+        GetMenuAction::CopyPassword
+    } else if s.starts_with(def::DISPLAY_URL) {
+        GetMenuAction::CopyUrl
+    } else if s.len() > 0 && s != def::DISPLAY_BTN_MAIN_MENU {
+        GetMenuAction::CopyOther(s.clone())
+    } else {
+        GetMenuAction::Exit
+    }
+}
+
+fn prepare_raw_line(s: &str) -> &str {
+    if let Some((_, value)) = s.split_once(": ") {
+        value.trim()
+    } else {
+        s.trim()
+    }
 }

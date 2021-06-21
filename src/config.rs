@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use serde::Deserialize;
-use toml;
+use crate::errors::Result;
 use dirs::config_dir;
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 
 const CONFIG_FILE: &str = "rpass/config.toml";
 
-lazy_static!{
+lazy_static! {
     pub static ref CFG_STRING: String = {
         let mut config_file = config_dir().unwrap();
         config_file.push(CONFIG_FILE);
@@ -31,21 +31,22 @@ lazy_static!{
             String::new()
         }
     };
-
     pub static ref CFG: Config<'static> = {
-        toml::from_str::<ConfigBuilder<'static>>(&CFG_STRING).unwrap().build()
+        toml::from_str::<ConfigBuilder<'static>>(&CFG_STRING)
+            .unwrap()
+            .build()
     };
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ConfigBuilder<'a> {
     #[serde(borrow)]
     pub main: Option<ConfigMainBuilder<'a>>,
     pub theme: Option<ConfigThemeBuilder<'a>>,
-    pub pass: Option<ConfigPassBuilder<'a>>
+    pub pass: Option<ConfigPassBuilder<'a>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ConfigMainBuilder<'a> {
     pub uuid_folder: Option<&'a str>,
     pub index_entry: Option<&'a str>,
@@ -55,14 +56,15 @@ pub struct ConfigMainBuilder<'a> {
     pub last_command_file: Option<&'a str>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ConfigThemeBuilder<'a> {
     pub theme_name: Option<&'a str>,
     pub key_alpha: Option<&'a str>,
     pub link_color: Option<&'a str>,
+    pub main_screen_width: Option<usize>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ConfigPassBuilder<'a> {
     pub user_key: Option<&'a str>,
     pub user_key_alt: Option<&'a str>,
@@ -74,9 +76,21 @@ pub struct ConfigPassBuilder<'a> {
 impl<'a> ConfigBuilder<'a> {
     fn build(mut self) -> Config<'a> {
         Config {
-            main: self.main.take().unwrap_or(ConfigMainBuilder::new()).build(),
-            theme: self.theme.take().unwrap_or(ConfigThemeBuilder::new()).build(),
-            pass: self.pass.take().unwrap_or(ConfigPassBuilder::new()).build()
+            main: self
+                .main
+                .take()
+                .unwrap_or_else(ConfigMainBuilder::new)
+                .build(),
+            theme: self
+                .theme
+                .take()
+                .unwrap_or_else(ConfigThemeBuilder::new)
+                .build(),
+            pass: self
+                .pass
+                .take()
+                .unwrap_or_else(ConfigPassBuilder::new)
+                .build(),
         }
     }
 }
@@ -111,6 +125,7 @@ impl<'a> ConfigThemeBuilder<'a> {
             theme_name: None,
             key_alpha: None,
             link_color: None,
+            main_screen_width: None,
         }
     }
 
@@ -118,7 +133,8 @@ impl<'a> ConfigThemeBuilder<'a> {
         ConfigTheme {
             theme_name: self.theme_name.take(),
             key_alpha: self.key_alpha.take().unwrap_or("50%"),
-            link_color: self.link_color.take().unwrap_or("#7EAFE9"),
+            link_color: self.link_color.take().unwrap_or("#ffffff"),
+            main_screen_width: self.main_screen_width.take().unwrap_or(400),
         }
     }
 }
@@ -145,12 +161,11 @@ impl<'a> ConfigPassBuilder<'a> {
     }
 }
 
-
 #[derive(Debug)]
 pub struct Config<'a> {
     pub main: ConfigMain<'a>,
     pub theme: ConfigTheme<'a>,
-    pub pass: ConfigPass<'a>
+    pub pass: ConfigPass<'a>,
 }
 
 #[derive(Debug)]
@@ -168,6 +183,7 @@ pub struct ConfigTheme<'a> {
     pub theme_name: Option<&'a str>,
     pub key_alpha: &'a str,
     pub link_color: &'a str,
+    pub main_screen_width: usize,
 }
 
 #[derive(Debug)]
@@ -177,4 +193,42 @@ pub struct ConfigPass<'a> {
     pub uuid_key: &'a str,
     pub path_key: &'a str,
     pub url_key: &'a str,
+}
+
+/// Store the config to file
+pub fn store_config() -> Result<()> {
+    let default_config = toml::from_str::<ConfigBuilder<'static>>("")
+        .unwrap()
+        .build();
+    let write_config: ConfigBuilder = ConfigBuilder {
+        main: Some(ConfigMainBuilder {
+            uuid_folder: Some(default_config.main.uuid_folder),
+            index_entry: Some(default_config.main.index_entry),
+            index_file: Some(default_config.main.index_file),
+            sync_folder: Some(default_config.main.sync_folder),
+            sync_commit_file: Some(default_config.main.sync_commit_file),
+            last_command_file: Some(default_config.main.last_command_file),
+        }),
+        theme: Some(ConfigThemeBuilder {
+            theme_name: default_config.theme.theme_name,
+            key_alpha: Some(default_config.theme.key_alpha),
+            link_color: Some(default_config.theme.link_color),
+            main_screen_width: Some(default_config.theme.main_screen_width),
+        }),
+        pass: Some(ConfigPassBuilder {
+            user_key: Some(default_config.pass.user_key),
+            user_key_alt: Some(default_config.pass.user_key_alt),
+            uuid_key: Some(default_config.pass.uuid_key),
+            path_key: Some(default_config.pass.path_key),
+            url_key: Some(default_config.pass.url_key),
+        }),
+    };
+
+    let config_str = toml::to_string_pretty(&write_config).unwrap();
+    let mut config_file = config_dir().unwrap();
+    config_file.push(CONFIG_FILE);
+    std::fs::create_dir_all(config_file.parent().unwrap())?;
+    std::fs::write(config_file, config_str)?;
+
+    Ok(())
 }

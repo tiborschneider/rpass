@@ -16,15 +16,15 @@
 
 use std::fmt;
 use std::io::Write;
-use std::process::{Command, Stdio};
 use std::iter;
+use std::process::{Command, Stdio};
 
 use uuid::Uuid;
 
+use crate::config::CFG;
+use crate::def;
 use crate::errors::{Error, Result};
 use crate::pass::index;
-use crate::def;
-use crate::config::CFG;
 
 #[derive(Clone)]
 pub struct Entry {
@@ -34,19 +34,18 @@ pub struct Entry {
     pub url: Option<String>,
     pub uuid: Uuid,
     pub raw: String,
-    pub hidden: bool
+    pub hidden: bool,
 }
 
 impl fmt::Display for Entry {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
         write!(f, "Entry: {}\n", self.uuid)?;
         if let Some(ref username) = self.username {
             write!(f, "    username: {}\n", username)?;
         }
         let hidden_pw: String = match self.hidden {
             true => iter::repeat("*").take(self.password.len()).collect(),
-            false => self.password.clone()
+            false => self.password.clone(),
         };
         write!(f, "    password: {}\n", hidden_pw)?;
         if let Some(ref path) = self.path {
@@ -56,20 +55,18 @@ impl fmt::Display for Entry {
             write!(f, "    url:      {}\n", url)?;
         }
         Ok(())
-
     }
 }
 
 impl fmt::Debug for Entry {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
         write!(f, "Entry: {}\n", self.uuid)?;
         if let Some(ref username) = self.username {
             write!(f, "    username: {}\n", username)?;
         }
         let hidden_pw: String = match self.hidden {
             true => iter::repeat("*").take(self.password.len()).collect(),
-            false => self.password.clone()
+            false => self.password.clone(),
         };
         write!(f, "    password: {}\n", hidden_pw)?;
         if let Some(ref path) = self.path {
@@ -87,18 +84,17 @@ impl fmt::Debug for Entry {
             write!(f, "        {}\n", line)?;
         }
         Ok(())
-
     }
 }
 
 #[allow(dead_code)]
 impl Entry {
-
-    pub fn new(username: Option<String>,
-               password: String,
-               url: Option<String>,
-               path: String) -> Entry {
-
+    pub fn new(
+        username: Option<String>,
+        password: String,
+        url: Option<String>,
+        path: String,
+    ) -> Entry {
         Entry {
             username,
             password,
@@ -106,7 +102,7 @@ impl Entry {
             url,
             uuid: Uuid::new_v4(),
             raw: String::new(),
-            hidden: true
+            hidden: true,
         }
     }
 
@@ -121,9 +117,8 @@ impl Entry {
 
     pub fn from_path<S>(path: S) -> Result<Entry>
     where
-         S: AsRef<str>
+        S: AsRef<str>,
     {
-
         let mut e = Entry {
             username: None,
             password: String::new(),
@@ -131,7 +126,7 @@ impl Entry {
             url: None,
             uuid: Uuid::nil(),
             raw: String::new(),
-            hidden: true
+            hidden: true,
         };
 
         let raw = String::from_utf8(Command::new("pass").arg(path.as_ref()).output()?.stdout)?;
@@ -140,7 +135,7 @@ impl Entry {
         let mut lines = raw.lines();
         e.password = match lines.next() {
             Some(s) => s.to_string(),
-            None => return Err(Error::EmptyEntry(format!("{}", path.as_ref())))
+            None => return Err(Error::EmptyEntry(format!("{}", path.as_ref()))),
         };
 
         // search for username and path
@@ -157,7 +152,7 @@ impl Entry {
             } else if line_lower.starts_with(CFG.pass.uuid_key) {
                 e.uuid = match Uuid::parse_str(&line[CFG.pass.uuid_key.len()..]) {
                     Ok(id) => id,
-                    Err(_) => Uuid::nil()
+                    Err(_) => Uuid::nil(),
                 }
             } else {
                 // line is not recognized! add line to raw
@@ -172,9 +167,8 @@ impl Entry {
     }
 
     pub fn create(&self) -> Result<()> {
-
         if self.path.is_none() {
-            return Err(Error::EntryWithoutPath(format!("{}", self.uuid)))
+            return Err(Error::EntryWithoutPath(format!("{}", self.uuid)));
         }
 
         self.write()?;
@@ -183,7 +177,6 @@ impl Entry {
     }
 
     pub fn write(&self) -> Result<()> {
-
         // rebuild raw
         let mut raw_content: String = String::new();
 
@@ -234,11 +227,11 @@ impl Entry {
     }
 
     pub fn edit(&mut self) -> Result<()> {
-
         Command::new("pass")
             .arg("edit")
             .arg(format!("{}/{}", CFG.main.uuid_folder, self.uuid))
-            .spawn()?.wait()?;
+            .spawn()?
+            .wait()?;
 
         // update the own settings and check if the path is unchanged. If not, update the path
         let old_path = self.path.clone().unwrap();
@@ -257,7 +250,6 @@ impl Entry {
         }
 
         Ok(())
-
     }
 
     pub fn change_username(&mut self, username: Option<String>) -> Result<()> {
@@ -283,10 +275,12 @@ impl Entry {
         self.write()
     }
 
-    pub fn change_raw_line(&mut self, old_line: Option<String>, new_line: Option<String>) -> Result<()> {
-
+    pub fn change_raw_line(
+        &mut self,
+        old_line: Option<String>,
+        new_line: Option<String>,
+    ) -> Result<()> {
         if let Some(old_line) = old_line {
-
             // replace the old line
             let mut found: bool = false;
             let raw_clone = self.raw.clone();
@@ -296,8 +290,10 @@ impl Entry {
                 if line == old_line {
                     found = true;
                     match new_line.clone() {
-                        Some(new_line) => { self.raw.push_str(new_line.as_str());
-                                            self.raw.push('\n'); },
+                        Some(new_line) => {
+                            self.raw.push_str(new_line.as_str());
+                            self.raw.push('\n');
+                        }
                         None => {}
                     }
                 } else {
@@ -308,17 +304,19 @@ impl Entry {
 
             match found {
                 true => self.write(),
-                false => Err(Error::EntryRawEdit("Could not find the line to edit".to_string()))
+                false => Err(Error::EntryRawEdit(
+                    "Could not find the line to edit".to_string(),
+                )),
             }
-
         } else {
-
             // insert new line
             match new_line {
-                Some(new_line) => { self.raw.push_str(new_line.as_str());
-                                    self.raw.push('\n');
-                                    self.write() },
-                None => Ok(())
+                Some(new_line) => {
+                    self.raw.push_str(new_line.as_str());
+                    self.raw.push('\n');
+                    self.write()
+                }
+                None => Ok(()),
             }
         }
     }
@@ -331,60 +329,79 @@ impl Entry {
     }
 
     pub fn change_path_keep_index(&mut self, new_path: String) -> Result<()> {
-
         // set the new path
         self.path = Some(new_path.clone());
         self.write()
-
     }
 
     pub fn get_rofi_lines(&self) -> Vec<String> {
-
         let mut result: Vec<String> = Vec::with_capacity(5);
 
-        result.push(format!("{}{}",
-                            def::format_small(def::DISPLAY_PATH),
-                            escape_pango(self.path.clone().unwrap())));
+        result.push(format!(
+            "{}{}",
+            def::format_small(def::DISPLAY_PATH),
+            escape_pango(self.path.clone().unwrap())
+        ));
 
-        result.push(format!("{}{}",
-                            def::format_small(def::DISPLAY_UUID),
-                            self.uuid));
-        
-        result.push(format!("{}{}",
-                            def::format_small(def::DISPLAY_USER),
-                            match self.username.as_ref() {
-                                Some(user) => escape_pango(user.clone()),
-                                None => def::format_small(def::DISPLAY_EMPTY)
-                            }));
+        result.push(format!(
+            "{}{}",
+            def::format_small(def::DISPLAY_UUID),
+            self.uuid
+        ));
+
+        result.push(format!(
+            "{}{}",
+            def::format_small(def::DISPLAY_USER),
+            match self.username.as_ref() {
+                Some(user) => escape_pango(user.clone()),
+                None => def::format_small(def::DISPLAY_EMPTY),
+            }
+        ));
 
         let hidden_pw: String = match self.hidden {
             true => iter::repeat("*").take(self.password.len()).collect(),
-            false => escape_pango(self.password.clone())
+            false => escape_pango(self.password.clone()),
         };
-        result.push(format!("{}{}",
-                            def::format_small(def::DISPLAY_PASS),
-                            hidden_pw));
+        result.push(format!(
+            "{}{}",
+            def::format_small(def::DISPLAY_PASS),
+            hidden_pw
+        ));
 
-        result.push(format!("{}{}",
-                            def::format_small(def::DISPLAY_URL),
-                            match self.url.as_ref() {
-                                Some(url) => escape_pango(url.clone()),
-                                None => def::format_small(def::DISPLAY_EMPTY)
-                            }));
+        result.push(format!(
+            "{}{}",
+            def::format_small(def::DISPLAY_URL),
+            match self.url.as_ref() {
+                Some(url) => escape_pango(url.clone()),
+                None => def::format_small(def::DISPLAY_EMPTY),
+            }
+        ));
 
         let mut raw_str_printed = false;
         for line in self.raw.lines() {
             if !raw_str_printed {
                 raw_str_printed = true;
-                result.push(format!("{}", def::format_small(def::DISPLAY_RAW).as_str()));
+                result.push(def::format_small(def::DISPLAY_RAW).as_str().to_string());
             }
-            result.push(format!("{}", escape_pango(line.to_string())));
+            if let Some((key, value)) = line.split_once(": ") {
+                // nice formatting
+                result.push(format!(
+                    "{}{}{}",
+                    def::format_small(key),
+                    def::format_small(def::DISPLAY_RAW_SEP),
+                    escape_pango(value.to_string())
+                ))
+            } else {
+                // normal formatting
+                result.push(escape_pango(line.to_string()).to_string());
+            }
         }
         result
     }
-
 }
 
 fn escape_pango(s: String) -> String {
-    s.replace("&", "&amp;").replace(">", "&gt;").replace("<", "&lt;")
+    s.replace("&", "&amp;")
+        .replace(">", "&gt;")
+        .replace("<", "&lt;")
 }

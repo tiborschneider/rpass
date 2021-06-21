@@ -16,21 +16,20 @@
 
 use std::process::exit;
 
-use clap::{Arg, App, SubCommand};
+use clap::{App, Arg, SubCommand};
 
-mod pass;
 mod commands;
-mod rofi_app;
-mod errors;
 mod config;
 mod def;
+mod errors;
+mod pass;
+mod rofi_app;
 
 use errors::Error;
 
 const DEFAULT_PW_SIZE: usize = 20;
 
 fn main() {
-
     let matches = App::new("rpass")
         .version("0.3.1")
         .author("Tibor Schneider <tiborschneider@bluewin.ch>")
@@ -227,64 +226,76 @@ fn main() {
                         .about("Starts the daemon for synchronization in the local network")
                 )
         )
+        .subcommand(
+            SubCommand::with_name("default-config")
+                .about("Write the default config to disk")
+        )
         .get_matches();
 
     let result = match matches.subcommand() {
-        ("menu", _)            => rofi_app::rofi_app(),
-        ("init", Some(args))   => commands::init(args.is_present("force")),
-        ("interactive", _)     => commands::interactive(),
-        ("get",    Some(args)) => commands::get(args.value_of("path"),
-                                                args.value_of("uuid"),
-                                                false,
-                                                args.is_present("password")),
-        ("edit",   Some(args)) => commands::edit(args.value_of("path"),
-                                                 args.value_of("uuid"),
-                                                 false),
-        ("mv",     Some(args)) => commands::mv(args.value_of("path"),
-                                               args.value_of("uuid"),
-                                               args.value_of("dst"),
-                                               false),
-        ("insert", Some(args)) => commands::insert(args.value_of("path"),
-                                                   args.value_of("username"),
-                                                   args.value_of("password"),
-                                                   args.value_of("url"),
-                                                   match args.is_present("generate") {
-                                                       true => Some(DEFAULT_PW_SIZE),
-                                                       false => None
-                                                   },
-                                                   false),
-        ("passwd", Some(args)) => commands::passwd(args.value_of("path"),
-                                                   args.value_of("uuid"),
-                                                   args.value_of("password"),
-                                                   match args.is_present("generate") {
-                                                       true => Some(DEFAULT_PW_SIZE),
-                                                       false => None
-                                                   },
-                                                   false),
-        ("rm", Some(args))     => commands::delete(args.value_of("path"),
-                                                   args.value_of("uuid"),
-                                                   args.is_present("force"),
-                                                   false),
-        ("ls", _)              => commands::list(),
-        ("fix-index", _)       => commands::fix_index(),
-        ("sync", Some(args))   => match args.subcommand() {
-            ("repo", Some(a))  => commands::sync::sync(!a.is_present("debug")),
-            ("init", _)        => commands::sync::init(),
-            ("daemon", _)      => commands::sync::daemon(),
-            _                  => commands::sync::full()
-        }
-        _                      => rofi_app::rofi_app()
+        ("menu", _) => rofi_app::rofi_app(),
+        ("init", Some(args)) => commands::init(args.is_present("force")),
+        ("interactive", _) => commands::interactive(),
+        ("get", Some(args)) => commands::get(
+            args.value_of("path"),
+            args.value_of("uuid"),
+            false,
+            args.is_present("password"),
+        ),
+        ("edit", Some(args)) => commands::edit(args.value_of("path"), args.value_of("uuid"), false),
+        ("mv", Some(args)) => commands::mv(
+            args.value_of("path"),
+            args.value_of("uuid"),
+            args.value_of("dst"),
+            false,
+        ),
+        ("insert", Some(args)) => commands::insert(
+            args.value_of("path"),
+            args.value_of("username"),
+            args.value_of("password"),
+            args.value_of("url"),
+            match args.is_present("generate") {
+                true => Some(DEFAULT_PW_SIZE),
+                false => None,
+            },
+            false,
+        ),
+        ("passwd", Some(args)) => commands::passwd(
+            args.value_of("path"),
+            args.value_of("uuid"),
+            args.value_of("password"),
+            match args.is_present("generate") {
+                true => Some(DEFAULT_PW_SIZE),
+                false => None,
+            },
+            false,
+        ),
+        ("rm", Some(args)) => commands::delete(
+            args.value_of("path"),
+            args.value_of("uuid"),
+            args.is_present("force"),
+            false,
+        ),
+        ("ls", _) => commands::list(),
+        ("fix-index", _) => commands::fix_index(),
+        ("sync", Some(args)) => match args.subcommand() {
+            ("repo", Some(a)) => commands::sync::sync(!a.is_present("debug")),
+            ("init", _) => commands::sync::init(),
+            ("daemon", _) => commands::sync::daemon(),
+            _ => commands::sync::full(),
+        },
+        ("default-config", _) => config::store_config(),
+        _ => rofi_app::rofi_app(),
     };
 
     match result {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(e) => match e {
-            Error::Interrupted => {},
+            Error::Interrupted => {}
             _ => {
                 eprintln!("Error: {:#?}", e);
                 exit(1);
             }
-        }
+        },
     }
-
 }

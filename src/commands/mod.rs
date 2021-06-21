@@ -15,25 +15,25 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
 mod delete;
+mod edit;
+mod fix_index;
 mod get;
+mod init;
 mod insert;
 mod interactive;
 mod list;
-pub mod utils;
 mod mv;
 mod passwd;
-mod edit;
-mod fix_index;
-mod init;
 pub mod sync;
+pub mod utils;
 
 pub use delete::delete;
+pub use edit::edit;
+pub use fix_index::fix_index;
 pub use get::get;
+pub use init::init;
 pub use insert::insert;
 pub use interactive::interactive;
 pub use list::list;
 pub use mv::mv;
 pub use passwd::passwd;
-pub use edit::edit;
-pub use fix_index::fix_index;
-pub use init::init;

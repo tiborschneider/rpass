@@ -14,19 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use crate::errors::Result;
-use crate::def;
-use crate::commands::{insert, get, edit};
 use crate::commands::utils::{confirm, notify_error};
+use crate::commands::{edit, get, insert};
+use crate::config::CFG;
+use crate::def;
+use crate::errors::Result;
 
-use rofi::{Rofi, Format, Width};
+use rofi::{Format, Rofi, Width};
 
 #[derive(Debug)]
 enum Action {
     Get,
     New,
     Edit,
-    Exit
+    Exit,
 }
 
 pub fn rofi_app() -> Result<()> {
@@ -34,25 +35,28 @@ pub fn rofi_app() -> Result<()> {
     loop {
         match main_menu() {
             Action::Exit => break,
-            action => action_wrapper(action)
+            action => action_wrapper(action),
         }
     }
 
     Ok(())
-
 }
 
 fn main_menu() -> Action {
-    let options = vec![def::format_big_button(def::DISPLAY_BTN_MM_GET),
-                       def::format_big_button(def::DISPLAY_BTN_MM_NEW),
-                       def::format_big_button(def::DISPLAY_BTN_MM_EDIT),
-                       def::format_small(def::DISPLAY_BTN_MM_EXIT)];
+    let options = vec![
+        def::format_big_button(def::DISPLAY_BTN_MM_GET),
+        def::format_big_button(def::DISPLAY_BTN_MM_NEW),
+        def::format_big_button(def::DISPLAY_BTN_MM_EDIT),
+        def::format_small(def::DISPLAY_BTN_MM_EXIT),
+    ];
     match Rofi::new(&options)
         .prompt("RPASS - Main Menu")
         .pango()
-        .width(Width::Pixels(350)).unwrap()
+        .width(Width::Pixels(CFG.theme.main_screen_width))
+        .unwrap()
         .return_format(Format::StrippedText)
-        .run(){
+        .run()
+    {
         Ok(s) => {
             println!("{}", s);
             match s.as_str() {
@@ -61,8 +65,8 @@ fn main_menu() -> Action {
                 def::DISPLAY_BTN_MM_EDIT => Action::Edit,
                 _ => Action::Exit,
             }
-        },
-        Err(_) => Action::Exit
+        }
+        Err(_) => Action::Exit,
     }
 }
 
@@ -74,14 +78,14 @@ fn action_wrapper(action: Action) {
         Action::Exit => Ok(()),
     } {
         Ok(()) => {}
-        Err(e) => notify_error(e)
+        Err(e) => notify_error(e),
     }
 }
 
 fn action_new() -> Result<()> {
     let random_pw = match confirm("Generate a random password?", true) {
         true => Some(20),
-        false => None
+        false => None,
     };
     insert(None, None, None, None, random_pw, true)
 }
