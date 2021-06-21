@@ -124,8 +124,8 @@ fn get_menu_action(s: String) -> GetMenuAction {
         GetMenuAction::CopyPassword
     } else if s.starts_with(def::DISPLAY_URL) {
         GetMenuAction::CopyUrl
-    } else if s.len() > 0 && s != def::DISPLAY_BTN_MAIN_MENU {
-        GetMenuAction::CopyOther(s.clone())
+    } else if !s.is_empty() && s != def::DISPLAY_BTN_MAIN_MENU {
+        GetMenuAction::CopyOther(s)
     } else {
         GetMenuAction::Exit
     }

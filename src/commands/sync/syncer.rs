@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::io;
-use std::io::ErrorKind;
-use std::io::prelude::*;
 use std::fs::{self, File};
+use std::io;
+use std::io::prelude::*;
+use std::io::ErrorKind;
 use std::process::Command;
 use std::str;
 
@@ -25,17 +25,16 @@ use dirs::home_dir;
 use unidiff::{self, PatchSet};
 use uuid::Uuid;
 
-use crate::errors::{Error, Result};
-use crate::def;
-use crate::config::CFG;
-use crate::pass::index;
-use crate::pass::entry::Entry;
 use crate::commands::sync::update_sync_commit_file;
+use crate::config::CFG;
+use crate::def;
+use crate::errors::{Error, Result};
+use crate::pass::entry::Entry;
+use crate::pass::index;
 
 // TODO also sync the other way!
 
 pub fn sync(apply: bool) -> Result<()> {
-
     let mut slave_changes = false;
 
     println!("Loading diffs...");
@@ -51,9 +50,15 @@ pub fn sync(apply: bool) -> Result<()> {
 
     // Step 1, copy all new master passwords over to the slave
     for new_file in master_patch.added_files() {
-        if !new_file.target_file.contains(CFG.main.uuid_folder) { continue }
-        if !new_file.target_file.starts_with("b/") { continue }
-        if !new_file.target_file.ends_with(".gpg") { continue }
+        if !new_file.target_file.contains(CFG.main.uuid_folder) {
+            continue;
+        }
+        if !new_file.target_file.starts_with("b/") {
+            continue;
+        }
+        if !new_file.target_file.ends_with(".gpg") {
+            continue;
+        }
         let uuid = uuid_from_diff_filename(&new_file.target_file)?;
         let path = index_path_map[&uuid];
 
@@ -66,15 +71,25 @@ pub fn sync(apply: bool) -> Result<()> {
 
     // step 2: apply deleted entries from the master to the slave
     for old_file in master_patch.removed_files() {
-        if !old_file.source_file.contains(CFG.main.uuid_folder) { continue }
-        if !old_file.source_file.starts_with("a/") { continue }
-        if !old_file.source_file.ends_with(".gpg") { continue }
+        if !old_file.source_file.contains(CFG.main.uuid_folder) {
+            continue;
+        }
+        if !old_file.source_file.starts_with("a/") {
+            continue;
+        }
+        if !old_file.source_file.ends_with(".gpg") {
+            continue;
+        }
         let uuid = uuid_from_diff_filename(&old_file.source_file)?;
 
         // extract the path from the diff
-        let path = match old_file.into_iter().flatten().filter(|l| l.value.starts_with(CFG.pass.path_key)).next() {
+        let path = match old_file
+            .into_iter()
+            .flatten()
+            .find(|l| l.value.starts_with(CFG.pass.path_key))
+        {
             Some(l) => String::from(&l.value[CFG.pass.path_key.len()..]),
-            None => return Err(Error::EntryWithoutPath(format!("{}", uuid)))
+            None => return Err(Error::EntryWithoutPath(format!("{}", uuid))),
         };
 
         println!("Remove entry [M -> S]: {}", path);
@@ -87,24 +102,33 @@ pub fn sync(apply: bool) -> Result<()> {
 
     // step 3: apply all changes of the master on the slave
     for mod_file in master_patch.modified_files() {
-        if !mod_file.target_file.contains(CFG.main.uuid_folder) { continue }
-        if !mod_file.target_file.starts_with("b/") { continue }
-        if !mod_file.target_file.ends_with(".gpg") { continue }
-        if mod_file.target_file.contains(CFG.main.index_file) { continue }
+        if !mod_file.target_file.contains(CFG.main.uuid_folder) {
+            continue;
+        }
+        if !mod_file.target_file.starts_with("b/") {
+            continue;
+        }
+        if !mod_file.target_file.ends_with(".gpg") {
+            continue;
+        }
+        if mod_file.target_file.contains(CFG.main.index_file) {
+            continue;
+        }
         let uuid = uuid_from_diff_filename(&mod_file.target_file)?;
         let path = index_path_map[&uuid];
 
         // Check wether the path line was changed
-        match mod_file.into_iter().flatten().filter(|l| l.line_type == "-" && l.value.starts_with(CFG.pass.path_key)).next() {
-            Some(l) => {
-                let old_path = &l.value[CFG.pass.path_key.len()..];
-                println!("Rename entry [M -> S]: {} -> {}", old_path, path);
-                if apply {
-                    rename_slave_entry(old_path, path)?;
-                    slave_changes = true;
-                }
-            },
-            None => {} // no move necessary
+        if let Some(l) = mod_file
+            .into_iter()
+            .flatten()
+            .find(|l| l.line_type == "-" && l.value.starts_with(CFG.pass.path_key))
+        {
+            let old_path = &l.value[CFG.pass.path_key.len()..];
+            println!("Rename entry [M -> S]: {} -> {}", old_path, path);
+            if apply {
+                rename_slave_entry(old_path, path)?;
+                slave_changes = true;
+            }
         }
 
         // copy over the new file
@@ -121,15 +145,21 @@ pub fn sync(apply: bool) -> Result<()> {
 
     // step 1: Remove entries in the master
     for old_file in slave_patch.removed_files() {
-        if !old_file.source_file.starts_with("a/") { continue }
-        if !old_file.source_file.ends_with(".gpg") { continue }
+        if !old_file.source_file.starts_with("a/") {
+            continue;
+        }
+        if !old_file.source_file.ends_with(".gpg") {
+            continue;
+        }
         let path = path_from_slave_diff_filename(&old_file.source_file);
 
         println!("Remove entry [M <- S]: {}", path);
 
         // check if the uuid exists and is indexed
         if !index_uuid_map.contains_key(path.as_str()) {
-            return Err(Error::SyncError("The slave entry does not exist in the index!"))
+            return Err(Error::SyncError(
+                "The slave entry does not exist in the index!",
+            ));
         }
 
         let uuid = index_uuid_map[path.as_str()];
@@ -141,8 +171,12 @@ pub fn sync(apply: bool) -> Result<()> {
 
     // step 2: Add new entries to the master
     for new_file in slave_patch.added_files() {
-        if !new_file.target_file.starts_with("b/") { continue }
-        if !new_file.target_file.ends_with(".gpg") { continue }
+        if !new_file.target_file.starts_with("b/") {
+            continue;
+        }
+        if !new_file.target_file.ends_with(".gpg") {
+            continue;
+        }
         let path = path_from_slave_diff_filename(&new_file.target_file);
         let full_path = format!("{}/{}", CFG.main.sync_folder, path);
 
@@ -167,8 +201,12 @@ pub fn sync(apply: bool) -> Result<()> {
 
     // step 3: Entry was edited by the slave, apply changes to the master
     for mod_file in slave_patch.modified_files() {
-        if !mod_file.target_file.starts_with("b/") { continue }
-        if !mod_file.target_file.ends_with(".gpg") { continue }
+        if !mod_file.target_file.starts_with("b/") {
+            continue;
+        }
+        if !mod_file.target_file.ends_with(".gpg") {
+            continue;
+        }
         let path = path_from_slave_diff_filename(&mod_file.target_file);
         let full_path = format!("{}/{}", CFG.main.sync_folder, path);
 
@@ -176,7 +214,9 @@ pub fn sync(apply: bool) -> Result<()> {
 
         // check if entry already exists in the index
         if !index_uuid_map.contains_key(path.as_str()) {
-            return Err(Error::SyncError("The slave entry does not exist in the index!"))
+            return Err(Error::SyncError(
+                "The slave entry does not exist in the index!",
+            ));
         }
 
         let uuid = index_uuid_map[path.as_str()];
@@ -187,10 +227,10 @@ pub fn sync(apply: bool) -> Result<()> {
 
             // check if everything is ok
             if e.uuid != uuid {
-                return Err(Error::SyncError("Slave has modified the uuid!"))
+                return Err(Error::SyncError("Slave has modified the uuid!"));
             }
             if e.path.as_ref() != Some(&path) {
-                return Err(Error::SyncError("Slave has an invalid path!"))
+                return Err(Error::SyncError("Slave has an invalid path!"));
             }
 
             // write the changes
@@ -232,17 +272,17 @@ pub fn sync(apply: bool) -> Result<()> {
     Ok(())
 }
 
-fn uuid_from_diff_filename(diff_filename: &String) -> Result<Uuid> {
+fn uuid_from_diff_filename(diff_filename: &str) -> Result<Uuid> {
     let uuid_start = "b//".len() + CFG.main.uuid_folder.len();
     let uuid_end = diff_filename.len() - ".gpg".len();
     let uuid_slice = &diff_filename[uuid_start..uuid_end];
     Ok(Uuid::parse_str(uuid_slice)?)
 }
 
-fn path_from_slave_diff_filename(diff_filename: &String) -> String {
+fn path_from_slave_diff_filename(diff_filename: &str) -> String {
     let path_start = "b/".len();
     let path_end = diff_filename.len() - ".gpg".len();
-    return String::from(&diff_filename[path_start..path_end])
+    String::from(&diff_filename[path_start..path_end])
 }
 
 fn move_entry_to_slave(uuid: Uuid, path: &str, overwrite: bool) -> Result<()> {
@@ -262,11 +302,15 @@ fn move_entry_to_slave(uuid: Uuid, path: &str, overwrite: bool) -> Result<()> {
 
     // if overwrite is not set, we must create a new file, and thus, the dst_path is not allowed to exist already.
     if dst_path.is_file() && !overwrite {
-        return Err(Error::SyncError("Slave already has an entry at the given location!"))
+        return Err(Error::SyncError(
+            "Slave already has an entry at the given location!",
+        ));
     }
     // if overwrite is set, we must edit the file, and thus, the dst_path must already exist
     if !dst_path.is_file() && overwrite {
-        return Err(Error::SyncError("Cannot modify slave entry, entry does not exist!"))
+        return Err(Error::SyncError(
+            "Cannot modify slave entry, entry does not exist!",
+        ));
     }
 
     // copy the file over
@@ -283,23 +327,27 @@ fn remove_slave_entry(path: &str) -> Result<()> {
 
     // remove the file
     match fs::remove_file(&dst_path) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(e) => match e.kind() {
-            ErrorKind::NotFound => println!("Warning: Entry {} does not exist for the slave!", path),
-            _ => return Err(Error::IoError(e))
-        }
+            ErrorKind::NotFound => {
+                println!("Warning: Entry {} does not exist for the slave!", path)
+            }
+            _ => return Err(Error::IoError(e)),
+        },
     }
 
     // recursively walk back directories if the current path is empty
     loop {
         dst_path.pop();
-        if dst_path.file_name().unwrap() == CFG.main.sync_folder { break }
+        if dst_path.file_name().unwrap() == CFG.main.sync_folder {
+            break;
+        }
         match fs::remove_dir(&dst_path) {
-            Ok(()) => {},
+            Ok(()) => {}
             Err(e) => match e.kind() {
                 ErrorKind::Other => break,
-                _ => Err(e)?
-            }
+                _ => return Err(e.into()),
+            },
         }
     }
 
@@ -323,7 +371,7 @@ fn rename_slave_entry(old_path: &str, new_path: &str) -> Result<()> {
 
     // check if the new_file already exists
     if dst_path.is_file() {
-        return Err(Error::SyncError("Destination file already exists!"))
+        return Err(Error::SyncError("Destination file already exists!"));
     }
 
     // move the entry
@@ -333,7 +381,7 @@ fn rename_slave_entry(old_path: &str, new_path: &str) -> Result<()> {
 }
 
 fn parse_diffs() -> Result<(PatchSet, PatchSet)> {
-     let (master_commit, slave_commit) = get_last_sync_commits()?;
+    let (master_commit, slave_commit) = get_last_sync_commits()?;
 
     // delete old file if it exists
     let mut working_path = home_dir().unwrap();
@@ -370,7 +418,6 @@ fn parse_diffs() -> Result<(PatchSet, PatchSet)> {
 }
 
 fn get_last_sync_commits() -> Result<(String, String)> {
-
     let mut sync_commit_file = home_dir().unwrap();
     sync_commit_file.push(def::ROOT_FOLDER);
     sync_commit_file.push(CFG.main.sync_folder);
@@ -383,12 +430,12 @@ fn get_last_sync_commits() -> Result<(String, String)> {
 
     let master_commit = match lines.next() {
         Some(s) => s?,
-        None => return Err(Error::SyncError(".sync_commit file is invalid!"))
+        None => return Err(Error::SyncError(".sync_commit file is invalid!")),
     };
 
     let slave_commit = match lines.next() {
         Some(s) => s?,
-        None => return Err(Error::SyncError(".sync_commit file is invalid!"))
+        None => return Err(Error::SyncError(".sync_commit file is invalid!")),
     };
 
     if master_commit.len() != 40 || slave_commit.len() != 40 {
@@ -396,5 +443,4 @@ fn get_last_sync_commits() -> Result<(String, String)> {
     } else {
         Ok((master_commit, slave_commit))
     }
-
 }

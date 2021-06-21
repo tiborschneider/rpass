@@ -39,20 +39,20 @@ pub struct Entry {
 
 impl fmt::Display for Entry {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Entry: {}\n", self.uuid)?;
+        writeln!(f, "Entry: {}", self.uuid)?;
         if let Some(ref username) = self.username {
-            write!(f, "    username: {}\n", username)?;
+            writeln!(f, "    username: {}", username)?;
         }
         let hidden_pw: String = match self.hidden {
             true => iter::repeat("*").take(self.password.len()).collect(),
             false => self.password.clone(),
         };
-        write!(f, "    password: {}\n", hidden_pw)?;
+        writeln!(f, "    password: {}", hidden_pw)?;
         if let Some(ref path) = self.path {
-            write!(f, "    path:     {}\n", path)?;
+            writeln!(f, "    path:     {}", path)?;
         }
         if let Some(ref url) = self.url {
-            write!(f, "    url:      {}\n", url)?;
+            writeln!(f, "    url:      {}", url)?;
         }
         Ok(())
     }
@@ -60,28 +60,28 @@ impl fmt::Display for Entry {
 
 impl fmt::Debug for Entry {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Entry: {}\n", self.uuid)?;
+        writeln!(f, "Entry: {}", self.uuid)?;
         if let Some(ref username) = self.username {
-            write!(f, "    username: {}\n", username)?;
+            writeln!(f, "    username: {}", username)?;
         }
         let hidden_pw: String = match self.hidden {
             true => iter::repeat("*").take(self.password.len()).collect(),
             false => self.password.clone(),
         };
-        write!(f, "    password: {}\n", hidden_pw)?;
+        writeln!(f, "    password: {}", hidden_pw)?;
         if let Some(ref path) = self.path {
-            write!(f, "    path:     {}\n", path)?;
+            writeln!(f, "    path:     {}", path)?;
         }
         if let Some(ref url) = self.url {
-            write!(f, "    url:      {}\n", url)?;
+            writeln!(f, "    url:      {}", url)?;
         }
         let mut raw_printed = false;
         for line in self.raw.lines() {
             if !raw_printed {
-                write!(f, "    raw:\n")?;
+                writeln!(f, "    raw:")?;
                 raw_printed = true;
             }
-            write!(f, "        {}\n", line)?;
+            writeln!(f, "        {}", line)?;
         }
         Ok(())
     }
@@ -135,7 +135,7 @@ impl Entry {
         let mut lines = raw.lines();
         e.password = match lines.next() {
             Some(s) => s.to_string(),
-            None => return Err(Error::EmptyEntry(format!("{}", path.as_ref()))),
+            None => return Err(Error::EmptyEntry(path.as_ref().to_string())),
         };
 
         // search for username and path
@@ -156,7 +156,7 @@ impl Entry {
                 }
             } else {
                 // line is not recognized! add line to raw
-                if line.len() > 0 {
+                if !line.is_empty() {
                     e.raw.push_str(line);
                     e.raw.push('\n');
                 }
@@ -241,7 +241,7 @@ impl Entry {
         self.password = new_entry.password.clone();
         self.path = new_entry.path.clone();
         self.url = new_entry.url.clone();
-        self.raw = new_entry.raw.clone();
+        self.raw = new_entry.raw;
 
         let new_path = self.path.clone().unwrap();
         if old_path != new_path {
@@ -289,12 +289,9 @@ impl Entry {
             for line in raw_clone.lines() {
                 if line == old_line {
                     found = true;
-                    match new_line.clone() {
-                        Some(new_line) => {
-                            self.raw.push_str(new_line.as_str());
-                            self.raw.push('\n');
-                        }
-                        None => {}
+                    if let Some(new_line) = new_line.clone() {
+                        self.raw.push_str(new_line.as_str());
+                        self.raw.push('\n');
                     }
                 } else {
                     self.raw.push_str(line);
@@ -330,7 +327,7 @@ impl Entry {
 
     pub fn change_path_keep_index(&mut self, new_path: String) -> Result<()> {
         // set the new path
-        self.path = Some(new_path.clone());
+        self.path = Some(new_path);
         self.write()
     }
 

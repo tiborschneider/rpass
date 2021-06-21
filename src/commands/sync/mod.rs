@@ -14,24 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::io::prelude::*;
-use std::fs::{self, OpenOptions};
-use std::process::Command;
 use std::env;
+use std::fs::{self, OpenOptions};
+use std::io::prelude::*;
+use std::process::Command;
 
 use dirs::home_dir;
 
-use crate::errors::Result;
-use crate::def;
 use crate::config::CFG;
+use crate::def;
+use crate::errors::Result;
 
-mod sync;
 mod daemon;
 mod init;
+mod syncer;
 
-pub use sync::sync;
 pub use daemon::daemon;
 pub use init::init;
+pub use syncer::sync;
 
 pub fn full() -> Result<()> {
     sync(true)?;
@@ -41,7 +41,6 @@ pub fn full() -> Result<()> {
 }
 
 fn update_sync_commit_file() -> Result<()> {
-
     // current directory must be changed!
     let old_dir = env::current_dir()?;
 

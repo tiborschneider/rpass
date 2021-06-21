@@ -14,10 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-
+use ansi_term::Colour::Blue;
 use petgraph::graph::{Graph, NodeIndex};
 use petgraph::Direction::Outgoing;
-use ansi_term::Colour::Blue;
 
 use crate::errors::Result;
 use crate::pass;
@@ -33,23 +32,23 @@ pub fn list() -> Result<()> {
 
 enum TreeFmtOpen {
     Line,
-    Last
+    Last,
 }
 
-fn print_with_level(part: &str, open: &Vec<TreeFmtOpen>, is_dir: bool) {
+fn print_with_level(part: &str, open: &[TreeFmtOpen], is_dir: bool) {
     let mut space = String::new();
     if open.len() >= 2 {
-        for o in open[0..open.len()-1].into_iter() {
+        for o in open[0..open.len() - 1].iter() {
             match o {
-                TreeFmtOpen::Line  => space.push_str("│   "),
-                TreeFmtOpen::Last  => space.push_str("    ")
+                TreeFmtOpen::Line => space.push_str("│   "),
+                TreeFmtOpen::Last => space.push_str("    "),
             }
         }
     }
-    if open.len() >= 1 {
+    if !open.is_empty() {
         match open[open.len() - 1] {
-            TreeFmtOpen::Line  => space.push_str("├── "),
-            TreeFmtOpen::Last  => space.push_str("└── ")
+            TreeFmtOpen::Line => space.push_str("├── "),
+            TreeFmtOpen::Last => space.push_str("└── "),
         }
     }
     if is_dir {
@@ -76,4 +75,3 @@ fn recursive_tree_print(graph: &Graph<&str, ()>, node: NodeIndex, open: &mut Vec
         print_with_level(graph.node_weight(node).unwrap(), open, false);
     }
 }
-

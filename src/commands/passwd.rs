@@ -14,24 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use rpassword;
-use fake::{Fake, faker};
+use fake::{faker, Fake};
 
-use crate::errors::{Error, Result};
 use crate::commands::utils::{choose_entry, question_rofi};
+use crate::errors::{Error, Result};
 
-pub fn passwd(path: Option<&str>,
-              id: Option<&str>,
-              new_passwd: Option<&str>,
-              generate: Option<usize>,
-              use_rofi: bool) -> Result<()> {
-
+pub fn passwd(
+    path: Option<&str>,
+    id: Option<&str>,
+    new_passwd: Option<&str>,
+    generate: Option<usize>,
+    use_rofi: bool,
+) -> Result<()> {
     let passwd = match generate {
-        Some(x) => Some(faker::internet::en::Password(x..x+1).fake()),
-        None => match new_passwd {
-            Some(s) => Some(s.to_string()),
-            None => None
-        }
+        Some(x) => Some(faker::internet::en::Password(x..x + 1).fake()),
+        None => new_passwd.map(|s| s.to_string()),
     };
 
     let mut entry = choose_entry(path, id, use_rofi)?;
@@ -42,34 +39,29 @@ pub fn passwd(path: Option<&str>,
 
     let passwd = match passwd {
         Some(x) => x,
-        None => {
-            match use_rofi {
-                true => {
-                    match question_rofi("password")? {
-                        Some(pw) => pw,
-                        None     => return Err(Error::InvalidInput("Password cannot be empty")),
+        None => match use_rofi {
+            true => match question_rofi("password")? {
+                Some(pw) => pw,
+                None => return Err(Error::InvalidInput("Password cannot be empty")),
+            },
+            false => {
+                let mut passwd: String;
+                loop {
+                    passwd = rpassword::prompt_password_stdout("Enter a password: ")?;
+                    let rp = rpassword::prompt_password_stdout("Repeat the password: ")?;
+                    if passwd == rp {
+                        break;
+                    } else {
+                        println!("The two passwords don't match. try again!");
                     }
-                },
-                false => {
-                    let mut passwd: String;
-                    loop {
-                        passwd = rpassword::prompt_password_stdout("Enter a password: ")?;
-                        let rp = rpassword::prompt_password_stdout("Repeat the password: ")?;
-                        if passwd == rp {
-                            break;
-                        } else {
-                            println!("The two passwords don't match. try again!");
-                        }
-                    }
-                    passwd
                 }
+                passwd
             }
-        }
+        },
     };
 
     match passwd.len() {
         0 => Err(Error::InvalidInput("Password cannot be empty!")),
-        _ => entry.change_password(passwd)
+        _ => entry.change_password(passwd),
     }
-    
 }

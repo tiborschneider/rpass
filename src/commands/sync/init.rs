@@ -14,21 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
+use std::fs::{self, File, OpenOptions};
 use std::io;
 use std::io::prelude::*;
-use std::fs::{self, File, OpenOptions};
 use std::process::Command;
 
 use dirs::home_dir;
 
-use crate::errors::{Error, Result};
-use crate::def;
-use crate::config::CFG;
-use crate::pass::index;
 use crate::commands::sync::update_sync_commit_file;
+use crate::config::CFG;
+use crate::def;
+use crate::errors::{Error, Result};
+use crate::pass::index;
 
 pub fn init() -> Result<()> {
-
     // setup gitignore in main pass repo
     init_gitignore()?;
     // setup .sync repo
@@ -38,7 +37,8 @@ pub fn init() -> Result<()> {
     // update the sync_commit file
     update_sync_commit_file()?;
 
-    println!("
+    println!(
+        "
 Now, you need to setup a git server locally on this machine using ssh. To do so,
 you need to perform the following steps:
 
@@ -64,7 +64,8 @@ you need to perform the following steps:
 8. Somehow get the gpg key to the mobile device
 
 After those steps, you are done and you can run rpass sync daemon
-");
+"
+    );
 
     Ok(())
 }
@@ -82,9 +83,11 @@ fn init_gitignore() -> Result<()> {
         {
             let gitignore_file = File::open(&gitignore_path)?;
             let reader = io::BufReader::new(gitignore_file);
-            match reader.lines().filter(|l| l.as_ref().unwrap().starts_with(CFG.main.sync_folder)).next() {
-                Some(_) => line_found = true,
-                None => {}
+            if reader
+                .lines()
+                .any(|l| l.as_ref().unwrap().starts_with(CFG.main.sync_folder))
+            {
+                line_found = true
             }
         }
         if !line_found {
@@ -133,7 +136,6 @@ fn init_gitignore() -> Result<()> {
 }
 
 fn init_snyc_folder() -> Result<()> {
-
     // generate .sync folder
     println!("Generating .sync folder!");
     let mut working_path = home_dir().unwrap();
@@ -224,7 +226,6 @@ fn init_snyc_folder() -> Result<()> {
 }
 
 fn do_initial_sync() -> Result<()> {
-
     let index_list = index::get_index()?;
 
     let mut sync_path = home_dir().unwrap();

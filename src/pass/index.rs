@@ -14,17 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::panic;
-use std::io::Write;
-use std::process::{Command, Stdio};
 use std::collections::HashMap;
+use std::io::Write;
+use std::panic;
+use std::process::{Command, Stdio};
 
 use petgraph::graph::{Graph, NodeIndex};
 
 use uuid::Uuid;
 
-use crate::errors::{Error, Result};
 use crate::config::CFG;
+use crate::errors::{Error, Result};
 
 #[allow(dead_code)]
 pub fn get_index() -> Result<Vec<(Uuid, String)>> {
@@ -44,86 +44,102 @@ pub fn get_index() -> Result<Vec<(Uuid, String)>> {
 
     // generate the resulting vector
 
-    let index_list: std::result::Result<Vec<(Uuid, String)>, _> = panic::catch_unwind(||
-        result.lines()
-            .map(|s| s.split(" ").collect())
+    let index_list: std::result::Result<Vec<(Uuid, String)>, _> = panic::catch_unwind(|| {
+        result
+            .lines()
+            .map(|s| s.split(' ').collect())
             .map(|v: Vec<&str>| (Uuid::parse_str(v[0]).unwrap(), v[1].to_string()))
             .collect()
-    );
+    });
 
     match index_list {
         Ok(l) => Ok(l),
-        Err(_) => Err(Error::Other("UUID Error: cannot parse uuid!".to_string()))
+        Err(_) => Err(Error::Other("UUID Error: cannot parse uuid!".to_string())),
     }
-
 }
 
-pub fn to_hashmap<'a>(index_list: &'a Vec<(Uuid, String)>) -> HashMap<Uuid, &'a str> {
+pub fn to_hashmap<'a>(index_list: &'a [(Uuid, String)]) -> HashMap<Uuid, &'a str> {
     let mut map: HashMap<Uuid, &'a str> = HashMap::new();
     for (id, path) in index_list {
-        map.insert(id.clone(), path);
+        map.insert(*id, path);
     }
     map
 }
 
-pub fn to_hashmap_reverse<'a>(index_list: &'a Vec<(Uuid, String)>) -> HashMap<&'a str, Uuid> {
+pub fn to_hashmap_reverse<'a>(index_list: &'a [(Uuid, String)]) -> HashMap<&'a str, Uuid> {
     let mut map: HashMap<&'a str, Uuid> = HashMap::new();
     for (id, path) in index_list {
-        map.insert(path, id.clone());
+        map.insert(path, *id);
     }
     map
 }
 
-pub fn to_graph<'a>(index_list: &'a Vec<(Uuid, String)>) -> (Graph<&'a str, ()>, NodeIndex) {
-
+pub fn to_graph<'a>(index_list: &'a [(Uuid, String)]) -> (Graph<&'a str, ()>, NodeIndex) {
     let mut g: Graph<&'a str, ()> = Graph::new();
 
     let root = g.add_node("root");
     let mut cur_path: Vec<NodeIndex> = Vec::new();
 
-    let mut index_iter = index_list.into_iter();
+    let mut index_iter = index_list.iter();
 
     // handle first element
     let (_, full_path) = index_iter.next().unwrap();
-    for node in full_path.split("/") {
+    for node in full_path.split('/') {
         cur_path.push(g.add_node(node));
         if cur_path.len() == 1 {
             g.add_edge(root, cur_path[0], ());
         } else {
-            g.add_edge(cur_path[cur_path.len() - 2], cur_path[cur_path.len() - 1], ());
+            g.add_edge(
+                cur_path[cur_path.len() - 2],
+                cur_path[cur_path.len() - 1],
+                (),
+            );
         }
     }
 
     // handle all other elements
     for (_, full_path) in index_iter {
-        let path: Vec<&str> = full_path.split("/").collect();
+        let path: Vec<&str> = full_path.split('/').collect();
 
         // determine index where both are the same
-        let min_idx = if cur_path.len() > path.len() { cur_path.len() } else { path.len() };
+        let min_idx = if cur_path.len() > path.len() {
+            cur_path.len()
+        } else {
+            path.len()
+        };
         let mut same = 0;
-        for i in 0..min_idx { if g.node_weight(cur_path[i]).unwrap() != &path[i] { same = i; break; } }
+        for i in 0..min_idx {
+            if g.node_weight(cur_path[i]).unwrap() != &path[i] {
+                same = i;
+                break;
+            }
+        }
         assert!(same < cur_path.len());
 
         // remove all elements until last greatest common parent is reached
-        while same < cur_path.len() { cur_path.pop(); };
+        while same < cur_path.len() {
+            cur_path.pop();
+        }
 
         // add all new elements
-        for node in path[same..path.len()].into_iter() {
+        for node in path[same..path.len()].iter() {
             cur_path.push(g.add_node(node));
             if cur_path.len() == 1 {
                 g.add_edge(root, cur_path[0], ());
             } else {
-                g.add_edge(cur_path[cur_path.len() - 2], cur_path[cur_path.len() - 1], ());
+                g.add_edge(
+                    cur_path[cur_path.len() - 2],
+                    cur_path[cur_path.len() - 1],
+                    (),
+                );
             }
         }
     }
 
     (g, root)
-
 }
 
-pub fn write(index_list: &Vec<(Uuid, String)>) -> Result<()> {
-
+pub fn write(index_list: &[(Uuid, String)]) -> Result<()> {
     let mut p = Command::new("pass")
         .arg("insert")
         .arg("--multiline")
@@ -142,21 +158,16 @@ pub fn write(index_list: &Vec<(Uuid, String)>) -> Result<()> {
     p.wait()?;
 
     Ok(())
-
 }
 
-pub fn insert(id: Uuid, path: &String) -> Result<()> {
+pub fn insert(id: Uuid, path: &str) -> Result<()> {
     let mut index_list = get_index()?;
     index_list.push((id, path.to_string()));
     write(&index_list)
 }
 
 pub fn remove(id: Uuid) -> Result<()> {
-
-    let index_list: Vec<(Uuid, String)> = get_index()?
-        .into_iter()
-        .filter(|x| x.0 != id)
-        .collect();
+    let index_list: Vec<(Uuid, String)> = get_index()?.into_iter().filter(|x| x.0 != id).collect();
 
     // remove the pass entry
     Command::new("pass")
@@ -166,17 +177,12 @@ pub fn remove(id: Uuid) -> Result<()> {
         .output()?;
 
     write(&index_list)
-
 }
 
 pub fn mv(id: Uuid, dst: String) -> Result<()> {
-
-    let mut index_list: Vec<(Uuid, String)> = get_index()?
-        .into_iter()
-        .filter(|x| x.0 != id)
-        .collect();
+    let mut index_list: Vec<(Uuid, String)> =
+        get_index()?.into_iter().filter(|x| x.0 != id).collect();
 
     index_list.push((id, dst));
     write(&index_list)
-
 }

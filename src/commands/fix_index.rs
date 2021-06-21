@@ -14,21 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::fs;
 use std::collections::HashMap;
+use std::fs;
 
-use uuid::Uuid;
 use dirs::home_dir;
+use uuid::Uuid;
 
-use crate::errors::{Error, Result};
-use crate::pass::index;
-use crate::pass::entry::Entry;
 use crate::commands::utils::{confirm, gen_path_interactive, two_options};
-use crate::def;
 use crate::config::CFG;
+use crate::def;
+use crate::errors::{Error, Result};
+use crate::pass::entry::Entry;
+use crate::pass::index;
 
 pub fn fix_index() -> Result<()> {
-
     let index_file = index::get_index()?;
     let path_lookup = index::to_hashmap(&index_file);
 
@@ -46,11 +45,14 @@ pub fn fix_index() -> Result<()> {
         let key_name = key_file.file_name().into_string().unwrap();
 
         if key_path.is_dir() {
-            println!("[Warning] uuids folder should not contain any folders: {}", key_name);
+            println!(
+                "[Warning] uuids folder should not contain any folders: {}",
+                key_name
+            );
             continue;
         }
 
-        let name_parts: Vec<&str> = key_name.split(".").collect();
+        let name_parts: Vec<&str> = key_name.split('.').collect();
 
         if name_parts.len() != 2 || name_parts[1] != def::ENTRY_EXTENSION {
             println!("[Warning] unrecognized file: {}", key_name);
@@ -64,28 +66,30 @@ pub fn fix_index() -> Result<()> {
 
         let entry_id = match Uuid::parse_str(name_parts[0]) {
             Ok(x) => x,
-            Err(_) => { println!("[Warning] invalid uuid: {}", key_name);
-                        continue; }
+            Err(_) => {
+                println!("[Warning] invalid uuid: {}", key_name);
+                continue;
+            }
         };
 
         check_fix_entry(entry_id, &path_lookup)?;
-        
     }
 
     Ok(())
 }
 
 fn check_fix_entry(entry_id: Uuid, path_lookup: &HashMap<Uuid, &str>) -> Result<()> {
-
     let mut entry = Entry::get(entry_id)?;
 
     match path_lookup.get(&entry.uuid) {
-        Some(stored_path) => { // uuid is found in index file
+        Some(stored_path) => {
+            // uuid is found in index file
             match stored_path == entry.path.as_ref().unwrap() {
                 true => {
                     println!("Entry at {} is correct!", stored_path);
-                }, // nothing to do
-                false => {  // different paths stored
+                } // nothing to do
+                false => {
+                    // different paths stored
                     println!("\nPath in entry and in index does not match!\n{}", entry);
                     println!("1: Path in index: {}", stored_path);
                     println!("2: Path in entry: {}", entry.path.as_ref().unwrap());
@@ -99,23 +103,31 @@ fn check_fix_entry(entry_id: Uuid, path_lookup: &HashMap<Uuid, &str>) -> Result<
                     }
                 }
             }
-        },
-        None => { // uuid is not found in the index file
+        }
+        None => {
+            // uuid is not found in the index file
             // check if entry has a path stored
             match entry.path.clone() {
-                Some(path) => { // generate index entry to the stored path
+                Some(path) => {
+                    // generate index entry to the stored path
                     println!("\nEntry is not present in the index!\n{}", entry);
                     if confirm(format!("Create index at {}", path), false) {
                         index::insert(entry.uuid, &path)?;
                     }
-                },
-                None => { // no path can be found
-                    println!("\nEntry is not present in the index and has no path information!\n{}", entry);
+                }
+                None => {
+                    // no path can be found
+                    println!(
+                        "\nEntry is not present in the index and has no path information!\n{}",
+                        entry
+                    );
                     if confirm("Create index and move entry to new location?", false) {
                         match gen_path_interactive() {
-                            Ok(path) => { println!("Move entry to {}", path);
-                                          entry.change_path(path)?; },
-                            _ => println!("Skipped!")
+                            Ok(path) => {
+                                println!("Move entry to {}", path);
+                                entry.change_path(path)?;
+                            }
+                            _ => println!("Skipped!"),
                         }
                     }
                 }

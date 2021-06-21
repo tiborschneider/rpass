@@ -15,35 +15,33 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
 use crate::errors::{Error, Result};
-use rpassword;
-use fake::{Fake, faker};
+use fake::{faker, Fake};
 
+use crate::commands::{get, utils};
 use crate::pass::entry::Entry;
-use crate::commands::{utils, get};
 
-pub fn insert(path: Option<&str>,
-              username: Option<&str>,
-              password: Option<&str>,
-              url: Option<&str>,
-              generate: Option<usize>,
-              use_rofi: bool) -> Result<()> {
-
+pub fn insert(
+    path: Option<&str>,
+    username: Option<&str>,
+    password: Option<&str>,
+    url: Option<&str>,
+    generate: Option<usize>,
+    use_rofi: bool,
+) -> Result<()> {
     let path = match path {
         Some(s) => s.to_string(),
-        None => {
-            match use_rofi {
-                true => utils::gen_path_interactive()?,
-                false => match utils::question("path", use_rofi)? {
-                    Some(s) => s,
-                    None => return Err(Error::InvalidInput("Path is required"))
-                }
-            }
-        }
+        None => match use_rofi {
+            true => utils::gen_path_interactive()?,
+            false => match utils::question("path", use_rofi)? {
+                Some(s) => s,
+                None => return Err(Error::InvalidInput("Path is required")),
+            },
+        },
     };
 
     let username = match username {
         Some(s) => Some(s.to_string()),
-        None => utils::question("username", use_rofi)?
+        None => utils::question("username", use_rofi)?,
     };
 
     let password = match generate {
@@ -54,7 +52,7 @@ pub fn insert(path: Option<&str>,
                 if use_rofi {
                     match utils::question("password", use_rofi)? {
                         Some(pw) => pw,
-                        None => return Err(Error::InvalidInput("Password is required!"))
+                        None => return Err(Error::InvalidInput("Password is required!")),
                     }
                 } else {
                     let mut passwd: String;
@@ -70,12 +68,12 @@ pub fn insert(path: Option<&str>,
                     passwd
                 }
             }
-        }
+        },
     };
 
     let url = match url {
         Some(s) => Some(s.to_string()),
-        None => utils::question("url", use_rofi)?
+        None => utils::question("url", use_rofi)?,
     };
 
     let e = Entry::new(username, password, url, path);
@@ -91,7 +89,7 @@ pub fn insert(path: Option<&str>,
 }
 
 fn generate_password(x: usize) -> String {
-    let pw: String = faker::internet::en::Password(x..x+1).fake();
+    let pw: String = faker::internet::en::Password(x..x + 1).fake();
     println!("Password: {}", pw);
     pw
 }
