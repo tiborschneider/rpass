@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
+mod bulk_rename;
 mod delete;
 mod edit;
 mod fix_index;
@@ -27,6 +28,7 @@ mod passwd;
 pub mod sync;
 pub mod utils;
 
+pub use bulk_rename::bulk_rename;
 pub use delete::delete;
 pub use edit::edit;
 pub use fix_index::fix_index;

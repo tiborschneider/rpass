@@ -230,6 +230,19 @@ fn main() {
             SubCommand::with_name("default-config")
                 .about("Write the default config to disk")
         )
+        .subcommand(
+            SubCommand::with_name("bulk-rename")
+                .about("Rename multiple keys at the same time, using $EDITOR.
+
+The bulk renaming is performed by opening a copy of the index key in $EDITOR.
+After performing all modifications, the script will search for all uuids for
+which the path was changed. If one uuid is changed, or a line is deleted, then
+the respective entry will be ignored. Only entries for which the modified and
+original uuid are identical will be compared.
+
+Before performing all modifications, the script will ask the user to confirm the
+actions.")
+        )
         .get_matches();
 
     let result = match matches.subcommand() {
@@ -285,6 +298,7 @@ fn main() {
             _ => commands::sync::full(),
         },
         ("default-config", _) => config::store_config(),
+        ("bulk-rename", _) => commands::bulk_rename(),
         _ => rofi_app::rofi_app(),
     };
 
