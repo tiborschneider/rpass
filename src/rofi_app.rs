@@ -52,6 +52,7 @@ fn main_menu() -> Action {
     match Rofi::new(&options)
         .prompt("RPASS - Main Menu")
         .pango()
+        .theme(CFG.theme.theme_name)
         .width(Width::Pixels(CFG.theme.main_screen_width))
         .unwrap()
         .return_format(Format::StrippedText)

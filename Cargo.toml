@@ -1,6 +1,6 @@
 [package]
 name = "rpass"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Tibor Schneider <tiborschneider@bluewin.ch>"]
 edition = "2018"
 
@@ -20,7 +20,7 @@ dirs = "2.0.2"
 unidiff = "0.3"
 ctrlc = "3.1.4"
 interactor = "0.1.1"
-rofi = "0.2.2"
+rofi = "0.3.0"
 toml = "0.5"
 serde = { version = "1.0", features = [ "derive" ] }
 lazy_static = "1.4"

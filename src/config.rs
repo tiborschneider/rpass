@@ -62,6 +62,7 @@ pub struct ConfigThemeBuilder<'a> {
     pub key_alpha: Option<&'a str>,
     pub link_color: Option<&'a str>,
     pub main_screen_width: Option<usize>,
+    pub width: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -126,6 +127,7 @@ impl<'a> ConfigThemeBuilder<'a> {
             key_alpha: None,
             link_color: None,
             main_screen_width: None,
+            width: None,
         }
     }
 
@@ -135,6 +137,7 @@ impl<'a> ConfigThemeBuilder<'a> {
             key_alpha: self.key_alpha.take().unwrap_or("50%"),
             link_color: self.link_color.take().unwrap_or("#ffffff"),
             main_screen_width: self.main_screen_width.take().unwrap_or(400),
+            width: self.width.take().unwrap_or(600),
         }
     }
 }
@@ -184,6 +187,7 @@ pub struct ConfigTheme<'a> {
     pub key_alpha: &'a str,
     pub link_color: &'a str,
     pub main_screen_width: usize,
+    pub width: usize,
 }
 
 #[derive(Debug)]
@@ -214,6 +218,7 @@ pub fn store_config() -> Result<()> {
             key_alpha: Some(default_config.theme.key_alpha),
             link_color: Some(default_config.theme.link_color),
             main_screen_width: Some(default_config.theme.main_screen_width),
+            width: Some(default_config.theme.width),
         }),
         pass: Some(ConfigPassBuilder {
             user_key: Some(default_config.pass.user_key),

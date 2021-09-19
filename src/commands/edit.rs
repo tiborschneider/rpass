@@ -19,6 +19,7 @@ use rofi::{Format, Rofi};
 
 use crate::commands::utils::{choose_entry, confirm, notify_action, notify_error, question_rofi};
 use crate::commands::{delete, mv, passwd};
+use crate::config::CFG;
 use crate::def;
 use crate::errors::Result;
 use crate::pass::entry::Entry;
@@ -44,6 +45,7 @@ fn edit_interactive(path: Option<&str>, id: Option<&str>) -> Result<()> {
         lines.push(def::format_button(def::DISPLAY_BTN_MAIN_MENU));
         match Rofi::new(&lines)
             .prompt("Edit Entry")
+            .theme(CFG.theme.theme_name)
             .pango()
             .return_format(Format::StrippedText)
             .run()

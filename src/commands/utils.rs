@@ -27,6 +27,7 @@ use rofi::{Format, Rofi, Width};
 use text_io::read;
 use uuid::Uuid;
 
+use crate::config::CFG;
 use crate::def;
 use crate::errors::{Error, Result};
 use crate::pass::entry::Entry;
@@ -81,17 +82,14 @@ fn choose_entry_rofi() -> Result<Entry> {
     let uuid_lookup = to_hashmap_reverse(&index_list_clone);
     let mut path_list: Vec<String> = index_list.into_iter().map(|x| x.1).collect();
     path_list.sort_by_key(|a| a.to_lowercase());
-    let max_len = path_list
-        .iter()
-        .map(|s| s.len())
-        .fold(30, |cur, x| if x > cur { x } else { cur });
 
     // show with rofi
     let selection = Rofi::new(&path_list)
         .prompt("Select an entry")
         .pango()
         .lines(15)
-        .width(Width::Characters(max_len))?
+        .width(Width::Pixels(CFG.theme.width))?
+        .theme(CFG.theme.theme_name)
         .return_format(Format::StrippedText)
         .run()?;
 
@@ -136,6 +134,7 @@ pub fn gen_path_recursive(cur_path: String) -> Result<String> {
             .pango()
             .lines(15)
             .prompt(format!("Choose an entry: {}/", cur_path))
+            .theme(CFG.theme.theme_name)
             .run_index()?;
         if idx == 0 {
             // Create new path
@@ -160,6 +159,7 @@ fn ask_for_path(path: &str) -> Result<String> {
     let empty_options: Vec<String> = Vec::new();
     let prompt_path = Rofi::new(&empty_options)
         .prompt(format!("Enter path: {}", cur_path))
+        .theme(CFG.theme.theme_name)
         .return_format(Format::UserInput)
         .run()?;
     Ok(format!("{}{}", cur_path, prompt_path))
@@ -181,7 +181,11 @@ fn confirm_stdio<S: AsRef<str>>(q: S) -> bool {
 
 fn confirm_rofi<S: AsRef<str>>(q: S) -> bool {
     let options = vec!["No".to_string(), "Yes".to_string()];
-    match Rofi::new(&options).prompt(q.as_ref()).run() {
+    match Rofi::new(&options)
+        .theme(CFG.theme.theme_name)
+        .prompt(q.as_ref())
+        .run()
+    {
         Ok(s) => s == "Yes",
         Err(_) => false,
     }

@@ -15,20 +15,20 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
 use std::fmt;
+use std::fs::{remove_file, File, OpenOptions};
 use std::io::prelude::*;
-use std::io::{Write, BufReader};
+use std::io::{BufReader, Write};
 use std::path::PathBuf;
-use std::fs::{File, remove_file, OpenOptions};
 
-use uuid::Uuid;
 use dirs::home_dir;
-use rofi::{Rofi, Format, Width};
+use rofi::{Format, Rofi, Width};
+use uuid::Uuid;
 
+use crate::commands::utils;
+use crate::config::CFG;
+use crate::def;
 use crate::errors::{Error, Result};
 use crate::pass::entry::Entry;
-use crate::commands::utils;
-use crate::def;
-use crate::config::CFG;
 
 pub fn interactive() -> Result<()> {
     // choose the entry
@@ -36,23 +36,27 @@ pub fn interactive() -> Result<()> {
         Some(id) => {
             let entry = Entry::get(id)?;
             action_copy_entry(&entry, CopyAction::Password)
-        },
+        }
         None => {
             let entry = utils::choose_entry(None, None, true)?;
 
-            let lines: Vec<String> = vec![def::format_button(def::DISPLAY_BTN_CPY_PASSWORD),
-                                          def::format_button(def::DISPLAY_BTN_CPY_USERNAME),
-                                          def::format_button(def::DISPLAY_BTN_CPY_BOTH),
-                                          def::format_small(def::DISPLAY_BTN_EXIT)];
+            let lines: Vec<String> = vec![
+                def::format_button(def::DISPLAY_BTN_CPY_PASSWORD),
+                def::format_button(def::DISPLAY_BTN_CPY_USERNAME),
+                def::format_button(def::DISPLAY_BTN_CPY_BOTH),
+                def::format_small(def::DISPLAY_BTN_EXIT),
+            ];
 
             match Rofi::new(&lines)
                 .prompt("What to copy?")
                 .pango()
-                .width(Width::Pixels(400))?
+                .width(Width::Pixels(CFG.theme.main_screen_width))?
+                .theme(CFG.theme.theme_name)
                 .return_format(Format::StrippedText)
-                .run() {
-                Ok(s)  => action_copy_entry(&entry, get_copy_action(s)),
-                Err(_) => Err(Error::Other("Rofi exited unsuccessfully".to_string()))
+                .run()
+            {
+                Ok(s) => action_copy_entry(&entry, get_copy_action(s)),
+                Err(_) => Err(Error::Other("Rofi exited unsuccessfully".to_string())),
             }
         }
     }
@@ -62,7 +66,7 @@ enum CopyAction {
     Username,
     Password,
     Both,
-    Exit
+    Exit,
 }
 
 impl fmt::Display for CopyAction {
@@ -77,10 +81,15 @@ impl fmt::Display for CopyAction {
 }
 
 fn get_copy_action(s: String) -> CopyAction {
-    if s == def::DISPLAY_BTN_CPY_USERNAME { CopyAction::Username }
-    else if s == def::DISPLAY_BTN_CPY_PASSWORD { CopyAction::Password }
-    else if s == def::DISPLAY_BTN_CPY_BOTH { CopyAction::Both }
-    else { CopyAction::Exit }
+    if s == def::DISPLAY_BTN_CPY_USERNAME {
+        CopyAction::Username
+    } else if s == def::DISPLAY_BTN_CPY_PASSWORD {
+        CopyAction::Password
+    } else if s == def::DISPLAY_BTN_CPY_BOTH {
+        CopyAction::Both
+    } else {
+        CopyAction::Exit
+    }
 }
 
 fn action_copy_entry(entry: &Entry, action: CopyAction) -> Result<()> {
@@ -92,7 +101,7 @@ fn action_copy_entry(entry: &Entry, action: CopyAction) -> Result<()> {
             copy_both = true;
             entry.username.clone().unwrap()
         }
-        CopyAction::Exit => return Err(Error::Interrupted)
+        CopyAction::Exit => return Err(Error::Interrupted),
     };
 
     let action_str = if copy_both {

@@ -14,27 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
+use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::process::Command;
 use std::{thread, time};
 
-use dirs::home_dir;
 use ctrlc;
+use dirs::home_dir;
 
-use crate::errors::Result;
-use crate::def;
 use crate::config::CFG;
+use crate::def;
+use crate::errors::Result;
 
 pub fn daemon() -> Result<()> {
-
     // start a handler for ctrlc
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
 
     ctrlc::set_handler(move || {
         r.store(false, Ordering::SeqCst);
-    }).expect("Error setting Ctrl-C handler");
+    })
+    .expect("Error setting Ctrl-C handler");
 
     // start the ssdh daemon
     println!("Starting sshd...");
@@ -47,7 +47,7 @@ pub fn daemon() -> Result<()> {
 
     // wait for one second
     thread::sleep(time::Duration::from_millis(1000));
-    
+
     // get sync path
     let mut sync_path = home_dir().unwrap();
     sync_path.push(def::ROOT_FOLDER);

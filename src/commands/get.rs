@@ -57,6 +57,7 @@ fn get_rofi_menu(entry: &mut Entry) -> Result<()> {
         match Rofi::new(&lines)
             .pango()
             .prompt("Entry")
+            .theme(CFG.theme.theme_name)
             .return_format(Format::StrippedText)
             .theme(CFG.theme.theme_name)
             .run()

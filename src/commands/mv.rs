@@ -14,14 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use crate::errors::{Error, Result};
 use crate::commands::utils::{choose_entry, gen_path_interactive, question};
+use crate::errors::{Error, Result};
 
-pub fn mv(path: Option<&str>,
-          id: Option<&str>,
-          dst: Option<&str>,
-          use_rofi: bool) -> Result<()> {
-
+pub fn mv(path: Option<&str>, id: Option<&str>, dst: Option<&str>, use_rofi: bool) -> Result<()> {
     let mut entry = choose_entry(path, id, use_rofi)?;
 
     if !use_rofi {
@@ -30,15 +26,13 @@ pub fn mv(path: Option<&str>,
 
     let dst_string = match dst {
         Some(s) => s.to_string(),
-        None => {
-            match use_rofi {
-                true => gen_path_interactive()?,
-                false => match question("path", use_rofi)? {
-                    Some(s) => s,
-                    None => return Err(Error::InvalidInput("New path is required!"))
-                }
-            }
-        }
+        None => match use_rofi {
+            true => gen_path_interactive()?,
+            false => match question("path", use_rofi)? {
+                Some(s) => s,
+                None => return Err(Error::InvalidInput("New path is required!")),
+            },
+        },
     };
 
     // pass::index::mv(entry.uuid, dst_string.clone()).expect("Could not move the key!");
