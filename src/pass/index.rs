@@ -102,19 +102,14 @@ pub fn to_graph<'a>(index_list: &'a [(Uuid, String)]) -> (Graph<&'a str, ()>, No
         let path: Vec<&str> = full_path.split('/').collect();
 
         // determine index where both are the same
-        let min_idx = if cur_path.len() > path.len() {
-            cur_path.len()
-        } else {
-            path.len()
-        };
-        let mut same = 0;
-        for i in 0..min_idx {
-            if g.node_weight(cur_path[i]).unwrap() != &path[i] {
-                same = i;
-                break;
-            }
-        }
-        assert!(same < cur_path.len());
+        let same = path.iter()
+            .zip(cur_path.iter().filter_map(|x| g.node_weight(*x)))
+            .enumerate()
+            .filter(|(_, (x, y))| x != y)
+            .map(|(i, _)| i)
+            .next()
+            .unwrap_or(path.len().min(cur_path.len()));
+        assert!(same <= cur_path.len());
 
         // remove all elements until last greatest common parent is reached
         while same < cur_path.len() {

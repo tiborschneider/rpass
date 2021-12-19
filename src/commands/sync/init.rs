@@ -53,13 +53,15 @@ you need to perform the following steps:
 4. Generate an empty and raw repository
        mkdir rpass.git
        cd rpass.git
-       git init --bare
+       git init --bare -b master
 5. logout of git user (exit)
 6. make sure to add the git user to ssh AllowedUsers
        sudo vim /etc/ssh/sshd_conf
    Add git user to the AllowedUsers.
 7. add the origin in the rpass folder:
        cd ~/.password-store/.sync
+       git checkout -b master
+       git branch -d main
        git remote add origin ssh://git@localhost/~git/rpass.git
 8. Somehow get the gpg key to the mobile device
 
