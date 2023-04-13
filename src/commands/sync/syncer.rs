@@ -157,9 +157,11 @@ pub fn sync(apply: bool) -> Result<()> {
 
         // check if the uuid exists and is indexed
         if !index_uuid_map.contains_key(path.as_str()) {
-            return Err(Error::SyncError(
-                "The slave entry does not exist in the index!",
-            ));
+            eprintln!(
+                "The slave entry {} does not exist in the index! Ignoring it...",
+                path.as_str()
+            );
+            continue;
         }
 
         let uuid = index_uuid_map[path.as_str()];

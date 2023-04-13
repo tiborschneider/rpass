@@ -208,23 +208,23 @@ fn main() {
         .subcommand(
             SubCommand::with_name("sync")
                 .about("Synchronize repository in non-uuid format. Without subcommand, sync local repos and start daemon.")
-                .subcommand(
-                    SubCommand::with_name("repo")
-                        .about("Synchronizes the master and slave repository.")
-                        .arg(Arg::with_name("debug")
-                             .short("d")
-                             .long("debug")
-                             .help("Only show changes, without applying them")
-                             .takes_value(false))
-                )
+                // .subcommand(
+                //     SubCommand::with_name("repo")
+                //         .about("Synchronizes the master and slave repository.")
+                //         .arg(Arg::with_name("debug")
+                //              .short("d")
+                //              .long("debug")
+                //              .help("Only show changes, without applying them")
+                //              .takes_value(false))
+                // )
                 .subcommand(
                     SubCommand::with_name("init")
                         .about("Initializes sync framework")
                 )
-                .subcommand(
-                    SubCommand::with_name("daemon")
-                        .about("Starts the daemon for synchronization in the local network")
-                )
+                // .subcommand(
+                //     SubCommand::with_name("daemon")
+                //         .about("Starts the daemon for synchronization in the local network")
+                // )
         )
         .subcommand(
             SubCommand::with_name("default-config")
@@ -292,9 +292,9 @@ actions.")
         ("ls", _) => commands::list(),
         ("fix-index", _) => commands::fix_index(),
         ("sync", Some(args)) => match args.subcommand() {
-            ("repo", Some(a)) => commands::sync::sync(!a.is_present("debug")),
+            // ("repo", Some(a)) => commands::sync::sync(!a.is_present("debug")),
             ("init", _) => commands::sync::init(),
-            ("daemon", _) => commands::sync::daemon(),
+            // ("daemon", _) => commands::sync::daemon(),
             _ => commands::sync::full(),
         },
         ("default-config", _) => config::store_config(),
