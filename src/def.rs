@@ -61,12 +61,10 @@ pub const DISPLAY_BTN_NEW_RAW: &str = "New raw line";
 pub const DISPLAY_BTN_DELETE: &str = "Delete";
 pub const DISPLAY_BTN_CANCEL: &str = "Cancel";
 pub const DISPLAY_BTN_NEW_PATH: &str = "New path";
-pub const DISPLAY_BTN_CPY_USERNAME_TYPE: &str = "Username (type)";
-pub const DISPLAY_BTN_CPY_USERNAME: &str = "Username (clipboard)";
-pub const DISPLAY_BTN_CPY_PASSWORD_TYPE: &str = "Password (type)";
-pub const DISPLAY_BTN_CPY_PASSWORD: &str = "Password (clipboard)";
-pub const DISPLAY_BTN_CPY_BOTH_TYPE: &str = "Both (type)";
-pub const DISPLAY_BTN_CPY_BOTH: &str = "Both (clipboard)";
+pub const DISPLAY_BTN_TYPE_USERNAME: &str = "Username";
+pub const DISPLAY_BTN_TYPE_PASSWORD: &str = "Password";
+pub const DISPLAY_BTN_TYPE_BOTH: &str = "Both";
+pub const DISPLAY_BTN_SHOW: &str = "show";
 pub const DISPLAY_BTN_EXIT: &str = "exit";
 
 pub const DISPLAY_BTN_MM_GET: &str = "Get Entry";

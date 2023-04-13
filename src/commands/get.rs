@@ -42,7 +42,7 @@ pub fn get(
     }
 }
 
-fn get_rofi_menu(entry: &mut Entry) -> Result<()> {
+pub(super) fn get_rofi_menu(entry: &mut Entry) -> Result<()> {
     loop {
         let mut lines: Vec<String> = entry.get_rofi_lines();
         lines.push(String::new());
