@@ -35,14 +35,17 @@ pub fn interactive() -> Result<()> {
     match previous_entry()? {
         Some(id) => {
             let entry = Entry::get(id)?;
-            action_copy_entry(&entry, CopyAction::Password)
+            action_copy_entry(&entry, CopyAction::Password(false))
         }
         None => {
             let entry = utils::choose_entry(None, None, true)?;
 
             let lines: Vec<String> = vec![
-                def::format_button(def::DISPLAY_BTN_CPY_PASSWORD),
+                def::format_button(def::DISPLAY_BTN_CPY_USERNAME_TYPE),
+                def::format_button(def::DISPLAY_BTN_CPY_PASSWORD_TYPE),
+                def::format_button(def::DISPLAY_BTN_CPY_BOTH_TYPE),
                 def::format_button(def::DISPLAY_BTN_CPY_USERNAME),
+                def::format_button(def::DISPLAY_BTN_CPY_PASSWORD),
                 def::format_button(def::DISPLAY_BTN_CPY_BOTH),
                 def::format_small(def::DISPLAY_BTN_EXIT),
             ];
@@ -63,18 +66,21 @@ pub fn interactive() -> Result<()> {
 }
 
 enum CopyAction {
-    Username,
-    Password,
-    Both,
+    Username(bool),
+    Password(bool),
+    Both(bool),
     Exit,
 }
 
 impl fmt::Display for CopyAction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CopyAction::Username => write!(f, "Username"),
-            CopyAction::Password => write!(f, "Password"),
-            CopyAction::Both => write!(f, "Both"),
+            CopyAction::Username(false) => write!(f, "Username (clipboard)"),
+            CopyAction::Username(true) => write!(f, "Username (type)"),
+            CopyAction::Password(false) => write!(f, "Password (clipboard)"),
+            CopyAction::Password(true) => write!(f, "Password (type)"),
+            CopyAction::Both(false) => write!(f, "Both (clipboard)"),
+            CopyAction::Both(true) => write!(f, "Both (type)"),
             CopyAction::Exit => write!(f, "Exit"),
         }
     }
@@ -82,36 +88,62 @@ impl fmt::Display for CopyAction {
 
 fn get_copy_action(s: String) -> CopyAction {
     if s == def::DISPLAY_BTN_CPY_USERNAME {
-        CopyAction::Username
+        CopyAction::Username(false)
+    } else if s == def::DISPLAY_BTN_CPY_USERNAME_TYPE {
+        CopyAction::Username(true)
     } else if s == def::DISPLAY_BTN_CPY_PASSWORD {
-        CopyAction::Password
+        CopyAction::Password(false)
+    } else if s == def::DISPLAY_BTN_CPY_PASSWORD_TYPE {
+        CopyAction::Password(true)
     } else if s == def::DISPLAY_BTN_CPY_BOTH {
-        CopyAction::Both
+        CopyAction::Both(false)
+    } else if s == def::DISPLAY_BTN_CPY_BOTH_TYPE {
+        CopyAction::Both(true)
     } else {
         CopyAction::Exit
     }
 }
 
 fn action_copy_entry(entry: &Entry, action: CopyAction) -> Result<()> {
+    let mut type_text: bool = false;
     let mut copy_both: bool = false;
     let entry_to_copy: String = match action {
-        CopyAction::Username => entry.username.clone().unwrap(),
-        CopyAction::Password => entry.password.clone(),
-        CopyAction::Both => {
+        CopyAction::Username(c) => {
+            type_text = c;
+            entry.username.clone().unwrap()
+        }
+        CopyAction::Password(c) => {
+            type_text = c;
+            entry.password.clone()
+        }
+        CopyAction::Both(false) => {
             copy_both = true;
             entry.username.clone().unwrap()
+        }
+        CopyAction::Both(true) => {
+            copy_both = false;
+            type_text = true;
+            format!(
+                "{}\t{}",
+                entry.username.clone().unwrap(),
+                entry.password.clone()
+            )
         }
         CopyAction::Exit => return Err(Error::Interrupted),
     };
 
     let action_str = if copy_both {
         write_next_entry(entry.uuid)?;
-        format!("{}", CopyAction::Username)
+        format!("{}", CopyAction::Username(false))
     } else {
         format!("{}", action)
     };
 
-    utils::copy_to_clipboard(entry_to_copy, action_str, Some(5000))
+    if type_text {
+        utils::type_to_x11(entry_to_copy)
+    } else {
+        utils::copy_to_clipboard(entry_to_copy, action_str, Some(5000))
+    }
 }
 
 fn previous_entry() -> Result<Option<Uuid>> {

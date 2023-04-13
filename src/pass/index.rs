@@ -102,7 +102,8 @@ pub fn to_graph<'a>(index_list: &'a [(Uuid, String)]) -> (Graph<&'a str, ()>, No
         let path: Vec<&str> = full_path.split('/').collect();
 
         // determine index where both are the same
-        let same = path.iter()
+        let same = path
+            .iter()
             .zip(cur_path.iter().filter_map(|x| g.node_weight(*x)))
             .enumerate()
             .filter(|(_, (x, y))| x != y)

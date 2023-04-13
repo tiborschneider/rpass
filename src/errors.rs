@@ -54,6 +54,10 @@ pub enum Error {
     UnidiffError(#[from] unidiff::Error),
     #[error("Rofi Error: {0}")]
     RofiError(rofi::Error),
+    #[error("Could not create the XDo instance! {0}")]
+    XDoCreationError(#[from] libxdo::CreationError),
+    #[error("XDo Error {0}")]
+    XDoError(#[from] libxdo::OpError),
     #[error("{0}")]
     Other(String),
 }

@@ -260,6 +260,18 @@ pub fn copy_to_clipboard<S: AsRef<str>>(s: String, action: S, wait_for: Option<u
     }
 }
 
+pub fn type_to_x11(s: impl AsRef<str>) -> Result<()> {
+    let s = s.as_ref();
+    let xdo = libxdo::XDo::new(None)?;
+    for (i, part) in s.split('\t').enumerate() {
+        if i > 0 {
+            xdo.send_keysequence("Tab", 1)?;
+        }
+        xdo.enter_text(part, 1)?;
+    }
+    Ok(())
+}
+
 pub fn delayed_clipboard_clear(duration: u64) -> Result<()> {
     // wait for 5 seconds
     let ten_millis = time::Duration::from_millis(duration);
