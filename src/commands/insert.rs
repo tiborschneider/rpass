@@ -81,7 +81,13 @@ pub fn insert(
     e.create()?;
 
     if use_rofi {
-        get(None, Some(format!("{}", e.uuid).as_str()), use_rofi, false)
+        get(
+            None,
+            Some(format!("{}", e.uuid).as_str()),
+            use_rofi,
+            false,
+            false,
+        )
     } else {
         println!("Created {}", e);
         Ok(())

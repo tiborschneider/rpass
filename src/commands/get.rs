@@ -28,6 +28,7 @@ pub fn get(
     id: Option<&str>,
     use_rofi: bool,
     only_password: bool,
+    only_username: bool,
 ) -> Result<()> {
     let mut entry = choose_entry(path, id, use_rofi)?;
     if use_rofi {
@@ -35,6 +36,15 @@ pub fn get(
     } else if only_password {
         println!("{}", entry.password);
         Ok(())
+    } else if only_username {
+        if let Some(username) = entry.username.as_ref() {
+            println!("{}", username);
+            Ok(())
+        } else {
+            Err(crate::errors::Error::Other(
+                "Entry does not have a username!".to_string(),
+            ))
+        }
     } else {
         entry.hidden = false;
         println!("{:?}", entry);

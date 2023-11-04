@@ -14,20 +14,75 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Write;
 use std::panic;
 use std::process::{Command, Stdio};
+use std::time::SystemTime;
 
 use petgraph::graph::{Graph, NodeIndex};
 
 use uuid::Uuid;
 
+use crate::Loading;
 use crate::config::CFG;
 use crate::errors::{Error, Result};
 
-#[allow(dead_code)]
+thread_local! {
+    pub static INDEX: RefCell<Index> = RefCell::new(Index::default());
+}
+
+#[derive(Debug)]
+pub struct Index {
+    timestamp: SystemTime,
+    index: Vec<(Uuid, String)>,
+}
+
 pub fn get_index() -> Result<Vec<(Uuid, String)>> {
+    INDEX.with(|index| {
+        if index.borrow().is_depricated()? {
+            index.replace(Index::read()?);
+        }
+        Ok(index.borrow().index.clone())
+    })
+}
+
+impl Default for Index {
+    fn default() -> Self {
+        Self {
+            timestamp: SystemTime::UNIX_EPOCH,
+            index: Vec::new(),
+        }
+    }
+}
+
+impl Index {
+    fn read() -> Result<Self> {
+        Ok(Self {
+            timestamp: Index::current_timestamp()?,
+            index: read_index()?,
+        })
+    }
+
+    fn is_depricated(&self) -> Result<bool> {
+        let timestamp = Index::current_timestamp()?;
+        Ok(self.timestamp < timestamp)
+    }
+
+    fn current_timestamp() -> Result<SystemTime> {
+        let mut index_file = home::home_dir().unwrap();
+        index_file.push(".password-store/uuids/index.gpg");
+        let metadata = std::fs::metadata(&index_file)?;
+        let timestamp = metadata.modified()?;
+        Ok(timestamp)
+    }
+}
+
+#[allow(dead_code)]
+fn read_index() -> Result<Vec<(Uuid, String)>> {
+    let _loading = Loading::new("Reading the index...")?;
+
     // execute pass command
     let output = Command::new("pass")
         .arg(format!("{}/{}", CFG.main.uuid_folder, CFG.main.index_entry))

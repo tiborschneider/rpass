@@ -92,7 +92,7 @@ fn action_new() -> Result<()> {
 }
 
 fn action_get() -> Result<()> {
-    get(None, None, true, false)
+    get(None, None, true, false, false)
 }
 
 fn action_edit() -> Result<()> {

@@ -14,7 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/
 
-use std::process::exit;
+use std::{
+    process::exit,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use clap::{App, Arg, SubCommand};
 
@@ -25,9 +28,12 @@ mod errors;
 mod pass;
 mod rofi_app;
 
-use errors::Error;
+use config::CFG;
+use errors::{Error, Result};
+use rofi::{Rofi, RofiChild, Width};
 
 const DEFAULT_PW_SIZE: usize = 20;
+static ROFI_APP: AtomicBool = AtomicBool::new(false);
 
 fn main() {
     let matches = App::new("rpass")
@@ -71,6 +77,11 @@ fn main() {
                      .short("p")
                      .long("password")
                      .help("only print out the password")
+                     .takes_value(false))
+                .arg(Arg::with_name("username")
+                     .short("n")
+                     .long("username")
+                     .help("only print out the username")
                      .takes_value(false))
         )
         .subcommand(
@@ -246,14 +257,21 @@ actions.")
         .get_matches();
 
     let result = match matches.subcommand() {
-        ("menu", _) => rofi_app::rofi_app(),
+        ("menu", _) => {
+            ROFI_APP.store(true, Ordering::Relaxed);
+            rofi_app::rofi_app()
+        },
         ("init", Some(args)) => commands::init(args.is_present("force")),
-        ("interactive", _) => commands::interactive(),
+        ("interactive", _) => {
+            ROFI_APP.store(true, Ordering::Relaxed);
+            commands::interactive()
+        },
         ("get", Some(args)) => commands::get(
             args.value_of("path"),
             args.value_of("uuid"),
             false,
             args.is_present("password"),
+            args.is_present("username"),
         ),
         ("edit", Some(args)) => commands::edit(args.value_of("path"), args.value_of("uuid"), false),
         ("mv", Some(args)) => commands::mv(
@@ -299,7 +317,10 @@ actions.")
         },
         ("default-config", _) => config::store_config(),
         ("bulk-rename", _) => commands::bulk_rename(),
-        _ => rofi_app::rofi_app(),
+        _ => {
+            ROFI_APP.store(true, Ordering::Relaxed);
+            rofi_app::rofi_app()
+        },
     };
 
     match result {
@@ -311,5 +332,45 @@ actions.")
                 exit(1);
             }
         },
+    }
+}
+
+pub struct Loading(Option<RofiChild<usize>>);
+
+#[allow(dead_code)]
+impl Loading {
+    pub fn new(msg: impl Into<String>) -> Result<Self> {
+        Ok(Self(if ROFI_APP.load(Ordering::Relaxed) {
+            let options = vec![
+                def::format_small("please_wait"),
+            ];
+
+            Some(
+                Rofi::new(&options)
+                    .prompt(msg)
+                    .pango()
+                    .theme(CFG.theme.theme_name)
+                    .width(Width::Pixels(500))?
+                    .spawn_index()?,
+            )
+        } else {
+            eprintln!("{}", msg.into());
+            None
+        }))
+    }
+
+    pub fn done(mut self) -> Result<()> {
+        if let Some(child) = self.0.as_mut() {
+            child.kill()?
+        }
+        Ok(())
+    }
+}
+
+impl Drop for Loading {
+    fn drop(&mut self) {
+        if let Some(child) = self.0.as_mut() {
+            let _ = child.kill();
+        }
     }
 }

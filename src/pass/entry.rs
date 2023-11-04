@@ -22,7 +22,7 @@ use std::process::{Command, Stdio};
 use uuid::Uuid;
 
 use crate::config::CFG;
-use crate::def;
+use crate::{def, Loading};
 use crate::errors::{Error, Result};
 use crate::pass::index;
 
@@ -119,6 +119,7 @@ impl Entry {
     where
         S: AsRef<str>,
     {
+        let _loading = Loading::new("Decrypting password...")?;
         let mut e = Entry {
             username: None,
             password: String::new(),
