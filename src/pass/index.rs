@@ -161,9 +161,16 @@ fn read_index(frequency: &HashMap<Uuid, usize>) -> Result<Vec<(Uuid, String)>> {
     // sort the list according to the frequency, and then alphabetically
     Ok(list
         .into_iter()
-        .map(|(uuid, path)| (uuid, frequency.get(&uuid).copied().unwrap_or(0), path))
-        .sorted_by(|(_, f1, n1), (_, f2, n2)| f2.cmp(f1).then_with(|| n1.cmp(n2)))
-        .map(|(uuid, _, path)| (uuid, path))
+        .map(|(uuid, path)| {
+            (
+                uuid,
+                frequency.get(&uuid).copied().unwrap_or(0),
+                path.to_lowercase(),
+                path,
+            )
+        })
+        .sorted_by(|(_, f1, n1, _), (_, f2, n2, _)| f2.cmp(f1).then_with(|| n1.cmp(n2)))
+        .map(|(uuid, _, _, path)| (uuid, path))
         .collect())
 }
 
