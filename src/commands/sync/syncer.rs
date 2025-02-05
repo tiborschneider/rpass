@@ -344,6 +344,7 @@ fn remove_slave_entry(path: &str) -> Result<()> {
         if dst_path.file_name().unwrap() == CFG.main.sync_folder {
             break;
         }
+        println!("{:?}", dst_path);
         match fs::remove_dir(&dst_path) {
             Ok(()) => {}
             Err(e) => match e.kind() {
