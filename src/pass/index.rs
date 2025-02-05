@@ -21,17 +21,21 @@ use std::panic;
 use std::process::{Command, Stdio};
 use std::time::SystemTime;
 
+use itertools::Itertools;
 use petgraph::graph::{Graph, NodeIndex};
 
 use uuid::Uuid;
 
-use crate::Loading;
 use crate::config::CFG;
 use crate::errors::{Error, Result};
+use crate::Loading;
 
 thread_local! {
     pub static INDEX: RefCell<Index> = RefCell::new(Index::default());
 }
+
+const HISTORY_FILE_NAME: &str = ".rpass_history.json";
+const HISTORY_TIME_SEC: u64 = 60 * 60 * 24 * 50; // 50 days
 
 #[derive(Debug)]
 pub struct Index {
@@ -48,6 +52,17 @@ pub fn get_index() -> Result<Vec<(Uuid, String)>> {
     })
 }
 
+pub fn touch_entry(uuid: Uuid) {
+    let mut history = read_history();
+    history.push((SystemTime::now(), uuid));
+
+    let mut file = std::env::temp_dir();
+    file.push(HISTORY_FILE_NAME);
+
+    let content = serde_json::to_string_pretty(&history).unwrap();
+    let _ = std::fs::write(file, content);
+}
+
 impl Default for Index {
     fn default() -> Self {
         Self {
@@ -59,9 +74,18 @@ impl Default for Index {
 
 impl Index {
     fn read() -> Result<Self> {
+        let history = read_history();
+        let frequency: HashMap<Uuid, usize> = history
+            .iter()
+            .map(|(_, uuid)| *uuid)
+            .sorted()
+            .chunk_by(|x| *x)
+            .into_iter()
+            .map(|(uuid, elements)| (uuid, elements.count()))
+            .collect();
         Ok(Self {
             timestamp: Index::current_timestamp()?,
-            index: read_index()?,
+            index: read_index(&frequency)?,
         })
     }
 
@@ -79,8 +103,35 @@ impl Index {
     }
 }
 
+fn read_history() -> Vec<(SystemTime, Uuid)> {
+    let mut file = std::env::temp_dir();
+    file.push(HISTORY_FILE_NAME);
+
+    // if the file does not exist, return an empty vector
+    if !file.exists() {
+        return Vec::new();
+    }
+
+    // read the file
+    let Ok(Ok(mut frequency)) =
+        std::fs::read_to_string(&file).map(|x| serde_json::from_str::<Vec<(SystemTime, Uuid)>>(&x))
+    else {
+        // cannot deserialize the file. Delete it and return the empty vector
+        let _ = std::fs::remove_file(file);
+        return Vec::new();
+    };
+    // only keep those that are younger than HISTORY_TIME_SEC.
+    frequency.retain(|(time, _)| {
+        time.elapsed()
+            .map(|x| x.as_secs())
+            .unwrap_or(HISTORY_TIME_SEC)
+            < HISTORY_TIME_SEC
+    });
+    frequency
+}
+
 #[allow(dead_code)]
-fn read_index() -> Result<Vec<(Uuid, String)>> {
+fn read_index(frequency: &HashMap<Uuid, usize>) -> Result<Vec<(Uuid, String)>> {
     let _loading = Loading::new("Reading the index...")?;
 
     // execute pass command
@@ -107,10 +158,17 @@ fn read_index() -> Result<Vec<(Uuid, String)>> {
             .collect()
     });
 
-    match index_list {
-        Ok(l) => Ok(l),
-        Err(_) => Err(Error::Other("UUID Error: cannot parse uuid!".to_string())),
-    }
+    let Ok(list) = index_list else {
+        return Err(Error::Other("UUID Error: cannot parse uuid!".to_string()));
+    };
+
+    // sort the list according to the frequency, and then alphabetically
+    Ok(list
+        .into_iter()
+        .map(|(uuid, path)| (uuid, frequency.get(&uuid).copied().unwrap_or(0), path))
+        .sorted_by(|(_, f1, n1), (_, f2, n2)| f2.cmp(f1).then_with(|| n1.cmp(n2)))
+        .map(|(uuid, _, path)| (uuid, path))
+        .collect())
 }
 
 pub fn to_hashmap<'a>(index_list: &'a [(Uuid, String)]) -> HashMap<Uuid, &'a str> {
@@ -214,6 +272,7 @@ pub fn write(index_list: &[(Uuid, String)]) -> Result<()> {
 pub fn insert(id: Uuid, path: &str) -> Result<()> {
     let mut index_list = get_index()?;
     index_list.push((id, path.to_string()));
+    touch_entry(id);
     write(&index_list)
 }
 

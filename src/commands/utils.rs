@@ -31,7 +31,7 @@ use crate::config::CFG;
 use crate::def;
 use crate::errors::{Error, Result};
 use crate::pass::entry::Entry;
-use crate::pass::index::{get_index, to_graph, to_hashmap_reverse};
+use crate::pass::index::{get_index, to_graph, to_hashmap_reverse, touch_entry};
 
 pub fn choose_entry(path: Option<&str>, id: Option<&str>, use_rofi: bool) -> Result<Entry> {
     match (path, id) {
@@ -66,11 +66,13 @@ fn choose_entry_fzf() -> Result<Entry> {
     let index_list = get_index()?;
     let index_list_clone = index_list.clone();
     let uuid_lookup = to_hashmap_reverse(&index_list_clone);
-    let mut path_list: Vec<String> = index_list.into_iter().map(|x| x.1).collect();
-    path_list.sort_by_key(|a| a.to_lowercase());
+    let path_list: Vec<String> = index_list.into_iter().map(|x| x.1).collect();
     let choice = interactor::pick_from_list(Some(&mut Command::new("fzf")), &path_list, "")?;
     match uuid_lookup.get(choice.as_str()) {
-        Some(id) => Entry::get(*id),
+        Some(id) => {
+            touch_entry(*id);
+            Entry::get(*id)
+        }
         None => Err(Error::UnknownPath(choice)),
     }
 }
@@ -80,8 +82,7 @@ fn choose_entry_rofi() -> Result<Entry> {
     let index_list = get_index()?;
     let index_list_clone = index_list.clone();
     let uuid_lookup = to_hashmap_reverse(&index_list_clone);
-    let mut path_list: Vec<String> = index_list.into_iter().map(|x| x.1).collect();
-    path_list.sort_by_key(|a| a.to_lowercase());
+    let path_list: Vec<String> = index_list.into_iter().map(|x| x.1).collect();
 
     // show with rofi
     let selection = Rofi::new(&path_list)
@@ -97,6 +98,7 @@ fn choose_entry_rofi() -> Result<Entry> {
         Some(id) => id,
         None => return Err(Error::UnknownPath(selection)),
     };
+    touch_entry(*entry_id);
     Entry::get(*entry_id)
 }
 

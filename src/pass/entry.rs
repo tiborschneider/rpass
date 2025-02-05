@@ -22,9 +22,9 @@ use std::process::{Command, Stdio};
 use uuid::Uuid;
 
 use crate::config::CFG;
-use crate::{def, Loading};
 use crate::errors::{Error, Result};
 use crate::pass::index;
+use crate::{def, Loading};
 
 #[derive(Clone)]
 pub struct Entry {
