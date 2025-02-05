@@ -240,12 +240,12 @@ pub fn two_options<S: AsRef<str>>(primary: S, secondary: S) -> bool {
 pub fn copy_to_clipboard<S: AsRef<str>>(s: String, action: S, wait_for: Option<u64>) -> Result<()> {
     let mut ctx: ClipboardContext = match ClipboardProvider::new() {
         Ok(ctx) => ctx,
-        Err(_) => return Err(Error::ClipboardError),
+        Err(_) => return Err(Error::Clipboard),
     };
 
     match ctx.set_contents(s) {
         Ok(_) => {}
-        Err(_) => return Err(Error::ClipboardError),
+        Err(_) => return Err(Error::Clipboard),
     };
 
     let action_string = format!("Copied {}", action.as_ref());

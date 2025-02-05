@@ -216,9 +216,7 @@ pub fn sync(apply: bool) -> Result<()> {
 
         // check if entry already exists in the index
         if !index_uuid_map.contains_key(path.as_str()) {
-            return Err(Error::SyncError(
-                "The slave entry does not exist in the index!",
-            ));
+            return Err(Error::Sync("The slave entry does not exist in the index!"));
         }
 
         let uuid = index_uuid_map[path.as_str()];
@@ -229,10 +227,10 @@ pub fn sync(apply: bool) -> Result<()> {
 
             // check if everything is ok
             if e.uuid != uuid {
-                return Err(Error::SyncError("Slave has modified the uuid!"));
+                return Err(Error::Sync("Slave has modified the uuid!"));
             }
             if e.path.as_ref() != Some(&path) {
-                return Err(Error::SyncError("Slave has an invalid path!"));
+                return Err(Error::Sync("Slave has an invalid path!"));
             }
 
             // write the changes
@@ -304,13 +302,13 @@ fn move_entry_to_slave(uuid: Uuid, path: &str, overwrite: bool) -> Result<()> {
 
     // if overwrite is not set, we must create a new file, and thus, the dst_path is not allowed to exist already.
     if dst_path.is_file() && !overwrite {
-        return Err(Error::SyncError(
+        return Err(Error::Sync(
             "Slave already has an entry at the given location!",
         ));
     }
     // if overwrite is set, we must edit the file, and thus, the dst_path must already exist
     if !dst_path.is_file() && overwrite {
-        return Err(Error::SyncError(
+        return Err(Error::Sync(
             "Cannot modify slave entry, entry does not exist!",
         ));
     }
@@ -334,7 +332,7 @@ fn remove_slave_entry(path: &str) -> Result<()> {
             ErrorKind::NotFound => {
                 println!("Warning: Entry {} does not exist for the slave!", path)
             }
-            _ => return Err(Error::IoError(e)),
+            _ => return Err(Error::Io(e)),
         },
     }
 
@@ -374,7 +372,7 @@ fn rename_slave_entry(old_path: &str, new_path: &str) -> Result<()> {
 
     // check if the new_file already exists
     if dst_path.is_file() {
-        return Err(Error::SyncError("Destination file already exists!"));
+        return Err(Error::Sync("Destination file already exists!"));
     }
 
     // move the entry
@@ -433,16 +431,16 @@ fn get_last_sync_commits() -> Result<(String, String)> {
 
     let master_commit = match lines.next() {
         Some(s) => s?,
-        None => return Err(Error::SyncError(".sync_commit file is invalid!")),
+        None => return Err(Error::Sync(".sync_commit file is invalid!")),
     };
 
     let slave_commit = match lines.next() {
         Some(s) => s?,
-        None => return Err(Error::SyncError(".sync_commit file is invalid!")),
+        None => return Err(Error::Sync(".sync_commit file is invalid!")),
     };
 
     if master_commit.len() != 40 || slave_commit.len() != 40 {
-        Err(Error::SyncError(".sync_commit file is invalid!"))
+        Err(Error::Sync(".sync_commit file is invalid!"))
     } else {
         Ok((master_commit, slave_commit))
     }

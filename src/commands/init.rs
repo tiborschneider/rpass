@@ -59,16 +59,13 @@ pub fn init(force: bool) -> Result<()> {
         return Ok(());
     }
 
-    match utils::confirm(
+    if !utils::confirm(
         format!(
             "\nGenerating index for {} keys! Do you wish to continue?",
             to_index.len()
         ),
         false,
-    ) {
-        false => return Err(Error::Interrupted),
-        true => {}
-    }
+    ) { return Err(Error::Interrupted) }
 
     for key_filename in to_index {
         let key_name = key_filename[root_folder_len..]

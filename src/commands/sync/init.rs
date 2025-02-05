@@ -96,7 +96,6 @@ fn init_gitignore() -> Result<()> {
             // append the line
             println!("Adding .sync to .gitignore!");
             let mut gitignore_file = OpenOptions::new()
-                .write(true)
                 .append(true)
                 .create(false)
                 .open(&gitignore_path)?;
@@ -109,6 +108,7 @@ fn init_gitignore() -> Result<()> {
         println!("Generating .gitignore!");
         let mut gitignore_file = OpenOptions::new()
             .create(true)
+            .truncate(true)
             .write(true)
             .open(&gitignore_path)?;
         gitignore_file.write_all(CFG.main.sync_folder.as_bytes())?;
@@ -147,7 +147,7 @@ fn init_snyc_folder() -> Result<()> {
         fs::create_dir(&working_path)?;
     } else {
         println!("Error: the sync folder already exists! To re-initialize it, delete the sync folder entirely and try again!");
-        return Err(Error::SyncError(".sync folder already exists"));
+        return Err(Error::Sync(".sync folder already exists"));
     }
 
     // initialize git repo
@@ -163,7 +163,6 @@ fn init_snyc_folder() -> Result<()> {
     working_path.push("config");
     {
         let mut config_file = OpenOptions::new()
-            .write(true)
             .append(true)
             .create(false)
             .open(&working_path)?;
@@ -181,6 +180,7 @@ fn init_snyc_folder() -> Result<()> {
         let mut gitignore_file = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&working_path)?;
         gitignore_file.write_all(CFG.main.sync_commit_file.as_bytes())?;
         gitignore_file.write_all(b"\n")?;
@@ -194,6 +194,7 @@ fn init_snyc_folder() -> Result<()> {
         let mut attributes_file = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&working_path)?;
         attributes_file.write_all(b"*.gpg diff=gpg\n")?;
     }

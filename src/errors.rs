@@ -19,11 +19,11 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("IoError: {0}")]
-    IoError(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
     #[error("Cannot parse Utf8: {0}")]
-    ParseUtf8Error(#[from] std::string::FromUtf8Error),
+    ParseUtf8(#[from] std::string::FromUtf8Error),
     #[error("Cannot parse Utf8: {0}")]
-    ParseUtf8StrError(#[from] std::str::Utf8Error),
+    ParseUtf8Str(#[from] std::str::Utf8Error),
     #[error("User interruption!")]
     Interrupted,
     #[error("Blank option chosen!")]
@@ -41,23 +41,23 @@ pub enum Error {
     #[error("Entry does not have a path: {0}")]
     EntryWithoutPath(String),
     #[error("Sync Error: {0}!")]
-    SyncError(&'static str),
+    Sync(&'static str),
     #[error("Empty entry found: {0}")]
     EmptyEntry(String),
     #[error("Cannot create clipboard context")]
-    ClipboardError,
+    Clipboard,
     #[error("UUID Error: {0}")]
-    UuidError(#[from] uuid::Error),
+    Uuid(#[from] uuid::Error),
     #[error("Notification Error: {0}")]
-    NotificationError(#[from] notify_rust::error::Error),
+    Notification(#[from] notify_rust::error::Error),
     #[error("Could not parse diff: {0}")]
-    UnidiffError(#[from] unidiff::Error),
+    Unidiff(#[from] unidiff::Error),
     #[error("Rofi Error: {0}")]
-    RofiError(rofi::Error),
+    Rofi(rofi::Error),
     #[error("Could not create the XDo instance! {0}")]
-    XDoCreationError(#[from] libxdo::CreationError),
+    XDoCreation(#[from] libxdo::CreationError),
     #[error("XDo Error {0}")]
-    XDoError(#[from] libxdo::OpError),
+    XDo(#[from] libxdo::OpError),
     #[error("{0}")]
     Other(String),
 }
@@ -65,14 +65,14 @@ pub enum Error {
 impl From<rofi::Error> for Error {
     fn from(e: rofi::Error) -> Self {
         match e {
-            rofi::Error::IoError(e) => Error::RofiError(rofi::Error::IoError(e)),
-            rofi::Error::ParseIntError(e) => Error::RofiError(rofi::Error::ParseIntError(e)),
+            rofi::Error::IoError(e) => Error::Rofi(rofi::Error::IoError(e)),
+            rofi::Error::ParseIntError(e) => Error::Rofi(rofi::Error::ParseIntError(e)),
             rofi::Error::Interrupted => Error::Interrupted,
             rofi::Error::Blank => Error::Blank,
-            rofi::Error::NotFound => Error::RofiError(rofi::Error::NotFound),
-            rofi::Error::InvalidWidth(e) => Error::RofiError(rofi::Error::InvalidWidth(e)),
+            rofi::Error::NotFound => Error::Rofi(rofi::Error::NotFound),
+            rofi::Error::InvalidWidth(e) => Error::Rofi(rofi::Error::InvalidWidth(e)),
             rofi::Error::ConfigErrorMessageAndOptions => {
-                Error::RofiError(rofi::Error::ConfigErrorMessageAndOptions)
+                Error::Rofi(rofi::Error::ConfigErrorMessageAndOptions)
             }
         }
     }

@@ -16,7 +16,6 @@
 
 use std::fmt;
 use std::io::Write;
-use std::iter;
 use std::process::{Command, Stdio};
 
 use uuid::Uuid;
@@ -44,7 +43,7 @@ impl fmt::Display for Entry {
             writeln!(f, "    username: {}", username)?;
         }
         let hidden_pw: String = match self.hidden {
-            true => iter::repeat("*").take(self.password.len()).collect(),
+            true => "*".repeat(self.password.len()),
             false => self.password.clone(),
         };
         writeln!(f, "    password: {}", hidden_pw)?;
@@ -65,7 +64,7 @@ impl fmt::Debug for Entry {
             writeln!(f, "    username: {}", username)?;
         }
         let hidden_pw: String = match self.hidden {
-            true => iter::repeat("*").take(self.password.len()).collect(),
+            true => "*".repeat(self.password.len()),
             false => self.password.clone(),
         };
         writeln!(f, "    password: {}", hidden_pw)?;
@@ -357,7 +356,7 @@ impl Entry {
         ));
 
         let hidden_pw: String = match self.hidden {
-            true => iter::repeat("*").take(self.password.len()).collect(),
+            true => "*".repeat(self.password.len()),
             false => escape_pango(self.password.clone()),
         };
         result.push(format!(

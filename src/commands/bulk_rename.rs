@@ -61,7 +61,7 @@ pub fn bulk_rename() -> Result<()> {
 
     let modified_uuids: Vec<Uuid> = index
         .iter()
-        .filter(|(k, v)| shadow.get(k).is_some() && shadow.get(k) != Some(v))
+        .filter(|(k, v)| shadow.contains_key(k) && shadow.get(k) != Some(v))
         .map(|(k, _)| *k)
         .collect();
 

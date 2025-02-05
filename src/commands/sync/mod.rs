@@ -77,6 +77,7 @@ fn update_sync_commit_file() -> Result<()> {
         let mut sync_commit_file = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&working_path)?;
         sync_commit_file.write_all(&master_commit)?;
         sync_commit_file.write_all(&slave_commit)?;
