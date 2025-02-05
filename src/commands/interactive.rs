@@ -20,7 +20,7 @@ use std::{fmt, time::SystemTime};
 use uuid::Uuid;
 
 use crate::commands::utils;
-use crate::config::CFG;
+use crate::config::{self, CFG};
 use crate::def;
 use crate::errors::{Error, Result};
 use crate::pass::entry::Entry;
@@ -33,7 +33,6 @@ struct LastAction {
 }
 
 const LAST_ACTION_TIMEOUT_SECS: u64 = 60;
-const LAST_ACTION_FILENAME: &str = ".rpass_last_action.json";
 
 pub fn interactive() -> Result<()> {
     // first, check if we have an interactive file.
@@ -143,8 +142,8 @@ fn action_copy_entry(entry: &mut Entry, action: CopyAction) -> Result<()> {
 }
 
 fn get_last_action() -> Option<LastAction> {
-    let mut file = std::env::temp_dir();
-    file.push(LAST_ACTION_FILENAME);
+    let mut file = home::home_dir().unwrap();
+    file.push(config::CFG.main.last_command_file);
 
     // read the content. If we cannot read it, return None
     let content = std::fs::read_to_string(&file).ok()?;
@@ -156,8 +155,8 @@ fn get_last_action() -> Option<LastAction> {
 }
 
 fn write_last_action(action: LastAction) -> Result<()> {
-    let mut file = std::env::temp_dir();
-    file.push(LAST_ACTION_FILENAME);
+    let mut file = home::home_dir().unwrap();
+    file.push(config::CFG.main.last_command_file);
 
     // generate the content string
     let content = serde_json::to_string_pretty(&action).unwrap();

@@ -26,16 +26,13 @@ use petgraph::graph::{Graph, NodeIndex};
 
 use uuid::Uuid;
 
-use crate::config::CFG;
+use crate::config::{self, CFG};
 use crate::errors::{Error, Result};
 use crate::Loading;
 
 thread_local! {
     pub static INDEX: RefCell<Index> = RefCell::new(Index::default());
 }
-
-const HISTORY_FILE_NAME: &str = ".rpass_history.json";
-const HISTORY_TIME_SEC: u64 = 60 * 60 * 24 * 50; // 50 days
 
 #[derive(Debug)]
 pub struct Index {
@@ -56,8 +53,8 @@ pub fn touch_entry(uuid: Uuid) {
     let mut history = read_history();
     history.push((SystemTime::now(), uuid));
 
-    let mut file = std::env::temp_dir();
-    file.push(HISTORY_FILE_NAME);
+    let mut file = home::home_dir().unwrap();
+    file.push(config::CFG.main.history_file);
 
     let content = serde_json::to_string_pretty(&history).unwrap();
     let _ = std::fs::write(file, content);
@@ -104,8 +101,8 @@ impl Index {
 }
 
 fn read_history() -> Vec<(SystemTime, Uuid)> {
-    let mut file = std::env::temp_dir();
-    file.push(HISTORY_FILE_NAME);
+    let mut file = home::home_dir().unwrap();
+    file.push(config::CFG.main.history_file);
 
     // if the file does not exist, return an empty vector
     if !file.exists() {
@@ -120,12 +117,11 @@ fn read_history() -> Vec<(SystemTime, Uuid)> {
         let _ = std::fs::remove_file(file);
         return Vec::new();
     };
-    // only keep those that are younger than HISTORY_TIME_SEC.
+    // only keep those that are younger than history_time
+    let secs_in_a_day = 60 * 60 * 24;
+    let history_time = config::CFG.main.history_days * secs_in_a_day;
     frequency.retain(|(time, _)| {
-        time.elapsed()
-            .map(|x| x.as_secs())
-            .unwrap_or(HISTORY_TIME_SEC)
-            < HISTORY_TIME_SEC
+        time.elapsed().map(|x| x.as_secs()).unwrap_or(history_time) < history_time
     });
     frequency
 }

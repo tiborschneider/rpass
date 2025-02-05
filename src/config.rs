@@ -54,6 +54,8 @@ pub struct ConfigMainBuilder<'a> {
     pub sync_folder: Option<&'a str>,
     pub sync_commit_file: Option<&'a str>,
     pub last_command_file: Option<&'a str>,
+    pub history_file: Option<&'a str>,
+    pub history_days: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -105,6 +107,8 @@ impl<'a> ConfigMainBuilder<'a> {
             sync_folder: None,
             sync_commit_file: None,
             last_command_file: None,
+            history_file: None,
+            history_days: None,
         }
     }
 
@@ -116,6 +120,11 @@ impl<'a> ConfigMainBuilder<'a> {
             sync_folder: self.sync_folder.take().unwrap_or(".sync"),
             sync_commit_file: self.sync_commit_file.take().unwrap_or(".sync_commit"),
             last_command_file: self.last_command_file.take().unwrap_or(".cache/rpass_last"),
+            history_file: self
+                .last_command_file
+                .take()
+                .unwrap_or(".cache/rpass_history"),
+            history_days: self.history_days.take().unwrap_or(50),
         }
     }
 }
@@ -179,6 +188,8 @@ pub struct ConfigMain<'a> {
     pub sync_folder: &'a str,
     pub sync_commit_file: &'a str,
     pub last_command_file: &'a str,
+    pub history_file: &'a str,
+    pub history_days: u64,
 }
 
 #[derive(Debug)]
@@ -212,6 +223,8 @@ pub fn store_config() -> Result<()> {
             sync_folder: Some(default_config.main.sync_folder),
             sync_commit_file: Some(default_config.main.sync_commit_file),
             last_command_file: Some(default_config.main.last_command_file),
+            history_file: Some(default_config.main.history_file),
+            history_days: Some(default_config.main.history_days),
         }),
         theme: Some(ConfigThemeBuilder {
             theme_name: default_config.theme.theme_name,
